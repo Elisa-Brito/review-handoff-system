@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --pin-open: #3b82f6;
+    --pin-resolved: #22c55e;
+    --pin-reopened: #f59e0b;
+    --pin-high: #f59e0b;
+    --pin-critical: #ef4444;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --border: 240 3.7% 20%;
+    --input: 240 3.7% 20%;
+    --ring: 240 4.9% 83.9%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    --pin-open: #60a5fa;
+    --pin-resolved: #4ade80;
+    --pin-reopened: #fbbf24;
+    --pin-high: #fbbf24;
+    --pin-critical: #f87171;
+  }
+
+  * {
+    box-sizing: border-box;
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .review-mode-cursor {
+    cursor: crosshair;
+  }
+
+  .pin-pulse {
+    animation: pin-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pin-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgba(59, 130, 246, 0);
+    }
+  }
+
+  .glass {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .hide-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
