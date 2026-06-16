@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
 
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string; pinId: string } }
 ) {
   try {
+    const supabase = getSupabase()
     const { status } = await req.json()
     const { data, error } = await supabase
       .from('pins')

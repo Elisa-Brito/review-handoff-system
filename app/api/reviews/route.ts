@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
 
 function normalizeUrl(raw: string): string {
   try {
     const u = new URL(raw.trim())
-    // Remove trailing slash from pathname, lowercase host
     u.pathname = u.pathname.replace(/\/+$/, '') || '/'
     return u.origin + u.pathname + u.search
   } catch {
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
     const { url } = await req.json()
     if (!url) return NextResponse.json({ error: 'URL obrigatória' }, { status: 400 })
 
+    const supabase = getSupabase()
     const normalized = normalizeUrl(url)
 
     const { data: existing } = await supabase

@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
+  const supabase = getSupabase()
   const { data, error } = await supabase
     .from('pins')
     .select('*')
@@ -19,6 +22,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
+    const supabase = getSupabase()
     const { x_percent, y_percent, body, author_name } = await req.json()
     if (!body?.trim()) return NextResponse.json({ error: 'Comentário obrigatório' }, { status: 400 })
 

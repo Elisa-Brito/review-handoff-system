@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
 
 async function fetchPageHTML(url: string): Promise<string> {
   try {
@@ -449,6 +451,7 @@ export async function POST(req: Request) {
     const screenshotData = screenshot ? `data:image/png;base64,${screenshot}` : null
 
     // Save to DB
+    const supabase = getSupabase()
     const { data: saved } = await supabase
       .from('handoffs')
       .insert({
@@ -477,6 +480,7 @@ export async function GET(req: Request) {
   const reviewId = searchParams.get('reviewId')
   if (!reviewId) return NextResponse.json([], { status: 200 })
 
+  const supabase = getSupabase()
   const { data } = await supabase
     .from('handoffs')
     .select('id, created_at, pages_analyzed, data, screenshot')
