@@ -24,7 +24,7 @@ function extractInternalLinks(html: string, baseUrl: string): string[] {
   const hrefRegex = /href=["']([^"'#?]+)["']/gi
   let m
   while ((m = hrefRegex.exec(html)) !== null) {
-    const href = m[1].trim()
+    const href = m[1]?.trim()
     if (!href || href.startsWith('mailto:') || href.startsWith('tel:')) continue
     try {
       const full = new URL(href, baseUrl).href
