@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS })
+}
+
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -468,10 +478,10 @@ export async function POST(req: Request) {
       handoff,
       screenshot: screenshotData,
       created_at: saved?.created_at,
-    })
+    }, { headers: CORS })
   } catch (err: any) {
     console.error('handoff error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({ error: err.message }, { status: 500, headers: CORS })
   }
 }
 
@@ -487,5 +497,5 @@ export async function GET(req: Request) {
     .eq('review_id', reviewId)
     .order('created_at', { ascending: false })
 
-  return NextResponse.json(data ?? [])
+  return NextResponse.json(data ?? [], { headers: CORS })
 }
