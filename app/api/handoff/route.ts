@@ -40,7 +40,7 @@ function extractInternalLinks(html: string, baseUrl: string): string[] {
     if (!href || href.startsWith('mailto:') || href.startsWith('tel:')) continue
     try {
       const full = new URL(href, baseUrl).href
-      if (full.startsWith(origin) && !full.match(/\.(png|jpg|jpeg|gif|svg|ico|pdf|zip|woff|woff2)$/i)) {
+      if (full.startsWith(origin) && !full.match(/\.(png|jpg|jpeg|gif|svg|ico|pdf|zip|woff|woff2|js|css|ts)$/i)) {
         links.add(full)
       }
     } catch { /* skip */ }
