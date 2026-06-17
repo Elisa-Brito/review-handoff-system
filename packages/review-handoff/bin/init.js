@@ -7,57 +7,96 @@ const cwd = process.cwd()
 
 console.log('\n🔍 Review Handoff — iniciando setup...\n')
 
-// 1. Copia o componente
-const srcComponent = path.join(__dirname, '..', 'component', 'ReviewToolbar.tsx')
-const destDir = path.join(cwd, 'components')
-const destComponent = path.join(destDir, 'ReviewToolbar.tsx')
+const srcDir = path.join(__dirname, '..', 'component')
 
-if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true })
-fs.copyFileSync(srcComponent, destComponent)
-console.log('✓ Componente copiado → components/ReviewToolbar.tsx')
+// Detecta tipo de projeto
+const isNextJs = fs.existsSync(path.join(cwd, 'next.config.js')) ||
+  fs.existsSync(path.join(cwd, 'next.config.mjs')) ||
+  fs.existsSync(path.join(cwd, 'next.config.ts'))
 
-// 2. Injeta no layout.tsx
-const layoutPaths = [
-  path.join(cwd, 'app', 'layout.tsx'),
-  path.join(cwd, 'app', 'layout.jsx'),
-  path.join(cwd, 'src', 'app', 'layout.tsx'),
-  path.join(cwd, 'src', 'app', 'layout.jsx'),
-]
-
-const layoutPath = layoutPaths.find(p => fs.existsSync(p))
-
-if (!layoutPath) {
-  console.log('\n⚠️  Não encontrei app/layout.tsx automaticamente.')
-  console.log('   Adicione manualmente no seu layout:\n')
-  console.log("   import ReviewToolbar from '@/components/ReviewToolbar'")
-  console.log('   // dentro do <body>:')
-  console.log('   <ReviewToolbar />\n')
-  process.exit(0)
+if (isNextJs) {
+  setupNextJs()
+} else {
+  setupHtml()
 }
 
-let layout = fs.readFileSync(layoutPath, 'utf-8')
+function setupNextJs() {
+  console.log('✓ Projeto Next.js detectado\n')
 
-if (layout.includes('ReviewToolbar')) {
-  console.log('✓ ReviewToolbar já está no layout — nada a fazer.')
+  // Copia componente React
+  const destDir = path.join(cwd, 'components')
+  if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true })
+  fs.copyFileSync(path.join(srcDir, 'ReviewToolbar.tsx'), path.join(destDir, 'ReviewToolbar.tsx'))
+  console.log('✓ Componente copiado → components/ReviewToolbar.tsx')
+
+  // Injeta no layout
+  const layoutPaths = [
+    path.join(cwd, 'app', 'layout.tsx'),
+    path.join(cwd, 'app', 'layout.jsx'),
+    path.join(cwd, 'src', 'app', 'layout.tsx'),
+    path.join(cwd, 'src', 'app', 'layout.jsx'),
+  ]
+  const layoutPath = layoutPaths.find(p => fs.existsSync(p))
+
+  if (!layoutPath) {
+    console.log('\n⚠️  Não encontrei app/layout.tsx. Adicione manualmente:\n')
+    console.log("   import ReviewToolbar from '@/components/ReviewToolbar'")
+    console.log('   // dentro do <body>:')
+    console.log('   <ReviewToolbar />\n')
+    printDone()
+    return
+  }
+
+  let layout = fs.readFileSync(layoutPath, 'utf-8')
+  if (layout.includes('ReviewToolbar')) {
+    console.log('✓ ReviewToolbar já está no layout.')
+    printDone()
+    return
+  }
+
+  const firstImport = layout.indexOf('import ')
+  layout = layout.slice(0, firstImport) +
+    "import ReviewToolbar from '@/components/ReviewToolbar'\n" +
+    layout.slice(firstImport)
+  layout = layout.replace('</body>', '      <ReviewToolbar />\n      </body>')
+
+  fs.writeFileSync(layoutPath, layout, 'utf-8')
+  console.log(`✓ ReviewToolbar injetado em ${layoutPath.replace(cwd, '.')}`)
   printDone()
-  process.exit(0)
 }
 
-// Adiciona import
-const firstImport = layout.indexOf('import ')
-layout = layout.slice(0, firstImport) +
-  "import ReviewToolbar from '@/components/ReviewToolbar'\n" +
-  layout.slice(firstImport)
+function setupHtml() {
+  // Copia o script JS puro
+  const destPath = path.join(cwd, 'review-toolbar.js')
+  fs.copyFileSync(path.join(srcDir, 'review-toolbar.js'), destPath)
+  console.log('✓ Script copiado → review-toolbar.js\n')
 
-// Injeta antes de </body>
-layout = layout.replace('</body>', '      <ReviewToolbar />\n      </body>')
+  // Tenta injetar em index.html automaticamente
+  const htmlPaths = [
+    path.join(cwd, 'index.html'),
+    path.join(cwd, 'public', 'index.html'),
+    path.join(cwd, 'src', 'index.html'),
+  ]
+  const htmlPath = htmlPaths.find(p => fs.existsSync(p))
 
-fs.writeFileSync(layoutPath, layout, 'utf-8')
-console.log(`✓ ReviewToolbar injetado em ${layoutPath.replace(cwd, '.')}`)
+  if (htmlPath) {
+    let html = fs.readFileSync(htmlPath, 'utf-8')
+    if (!html.includes('review-toolbar.js')) {
+      html = html.replace('</body>', '  <script src="/review-toolbar.js"></script>\n</body>')
+      fs.writeFileSync(htmlPath, html, 'utf-8')
+      console.log(`✓ Script injetado em ${htmlPath.replace(cwd, '.')}`)
+    } else {
+      console.log('✓ Script já está no HTML.')
+    }
+  } else {
+    console.log('⚠️  Adicione manualmente antes do </body> em todos os HTMLs:\n')
+    console.log('   <script src="/review-toolbar.js"></script>\n')
+  }
 
-printDone()
+  printDone()
+}
 
 function printDone() {
   console.log('\n✅ Pronto! Qualquer pessoa que abrir o protótipo vai ver a toolbar de comentários.')
-  console.log('   Faça o deploy normalmente (vercel --prod) e compartilhe o link.\n')
+  console.log('   Faça o deploy normalmente e compartilhe o link.\n')
 }
