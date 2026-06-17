@@ -158,12 +158,13 @@ async function crawlSite(rootUrl: string, maxPages = 10, extraRoutes: string[] =
 
   for (const url of queue) {
     if (pages.length >= maxPages) break
+    if (url.match(/\.(js|css|ts|json|xml|txt|map)$/i)) continue
     const normalized = url.split('?')[0].replace(/\/$/, '') || url
     if (visited.has(normalized)) continue
     visited.add(normalized)
 
     const html = await fetchPageHTML(url)
-    if (!html) continue
+    if (!html || !html.trim().startsWith('<') ) continue
     pages.push({ url, html })
 
     // Also follow links found in HTML
