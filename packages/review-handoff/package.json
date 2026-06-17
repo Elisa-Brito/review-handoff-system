@@ -1,0 +1,14 @@
+{
+  "name": "review-handoff",
+  "version": "1.0.0",
+  "description": "Toolbar de comentários para protótipos Next.js",
+  "bin": {
+    "review-handoff": "./bin/init.js"
+  },
+  "files": [
+    "bin",
+    "component"
+  ],
+  "keywords": ["review", "handoff", "comments", "nextjs"],
+  "license": "MIT"
+}
