@@ -49,13 +49,8 @@ export default function HomePage() {
     }}>
       <div style={{ width: '100%', maxWidth: 480 }}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: 16,
-            background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 16px', fontSize: 24,
-          }}>
-            💬
+          <div style={{ margin: '0 auto 16px', width: 64, height: 64 }}>
+            <img src="/favicon.svg" alt="logo" style={{ width: 64, height: 64 }} />
           </div>
           <h1 style={{ color: '#fff', fontSize: 26, fontWeight: 700, margin: '0 0 8px' }}>
             Review de Protótipos

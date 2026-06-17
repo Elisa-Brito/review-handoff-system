@@ -8,6 +8,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Review & Handoff',
   description: 'Collaborative design review and engineering handoff system',
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({
