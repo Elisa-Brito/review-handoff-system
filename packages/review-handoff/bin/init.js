@@ -5,6 +5,11 @@ const path = require('path')
 
 const cwd = process.cwd()
 
+if (process.argv[2] === 'remove') {
+  require('./remove.js')
+  process.exit(0)
+}
+
 console.log('\n🔍 Review Handoff — iniciando setup...\n')
 
 const srcDir = path.join(__dirname, '..', 'component')
