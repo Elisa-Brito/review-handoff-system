@@ -423,21 +423,24 @@ async function fetchRepoFiles(repoUrl: string): Promise<string> {
 
 export async function POST(req: Request) {
   try {
-    const { vercelUrl, repoUrl, manualRoutes, reviewId } = await req.json()
+    const { vercelUrl, repoUrl, manualRoutes, reviewId, pages: preRenderedPages } = await req.json()
     if (!vercelUrl) return NextResponse.json({ error: 'URL obrigatória' }, { status: 400 })
 
-    const origin = new URL(vercelUrl).origin
-    const manualUrls = (manualRoutes ?? [])
-      .filter((r: any) => r.path?.trim())
-      .map((r: any) => origin + (r.path.startsWith('/') ? r.path : '/' + r.path))
+    const repoContent = repoUrl?.trim() ? await fetchRepoFiles(repoUrl.trim()) : ''
 
-    const repoRoutes = repoUrl?.trim() ? await discoverRoutesFromRepo(repoUrl.trim(), vercelUrl) : []
-    const extraRoutes = [...new Set([...manualUrls, ...repoRoutes])]
-
-    const [pages, repoContent] = await Promise.all([
-      crawlSite(vercelUrl, 10, extraRoutes),
-      repoUrl?.trim() ? fetchRepoFiles(repoUrl.trim()) : Promise.resolve(''),
-    ])
+    // Use pre-rendered HTML from browser if provided, otherwise crawl
+    let pages: { url: string; html: string }[]
+    if (preRenderedPages?.length) {
+      pages = preRenderedPages.map((p: any) => ({ url: p.url, html: p.html }))
+    } else {
+      const origin = new URL(vercelUrl).origin
+      const manualUrls = (manualRoutes ?? [])
+        .filter((r: any) => r.path?.trim())
+        .map((r: any) => origin + (r.path.startsWith('/') ? r.path : '/' + r.path))
+      const repoRoutes = repoUrl?.trim() ? await discoverRoutesFromRepo(repoUrl.trim(), vercelUrl) : []
+      const extraRoutes = [...new Set([...manualUrls, ...repoRoutes])]
+      pages = await crawlSite(vercelUrl, 10, extraRoutes)
+    }
 
     // Analyze each page individually
     const pagesAnalyzed = await Promise.all(pages.map(async (p) => {
