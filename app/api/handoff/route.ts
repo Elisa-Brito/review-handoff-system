@@ -434,32 +434,43 @@ export async function POST(req: Request) {
     const repoRoutes = repoUrl?.trim() ? await discoverRoutesFromRepo(repoUrl.trim(), vercelUrl) : []
     const extraRoutes = [...new Set([...manualUrls, ...repoRoutes])]
 
-    const [pages, screenshot, repoContent] = await Promise.all([
+    const [pages, repoContent] = await Promise.all([
       crawlSite(vercelUrl, 10, extraRoutes),
-      getScreenshotBase64(vercelUrl),
       repoUrl?.trim() ? fetchRepoFiles(repoUrl.trim()) : Promise.resolve(''),
     ])
 
-    const allHtml = pages.map(p => p.html).join('\n')
-    const cssContents = await Promise.all(pages.map(p => fetchCSSFiles(p.html, p.url)))
-    const allCss = cssContents.join('\n') + '\n' + repoContent
+    // Analyze each page individually
+    const pagesAnalyzed = await Promise.all(pages.map(async (p) => {
+      const css = await fetchCSSFiles(p.html, p.url)
+      const fullCss = css + '\n' + repoContent
+      const slug = new URL(p.url).pathname.replace(/\//g, ' ').trim() || 'Home'
+      return {
+        url: p.url,
+        label: slug.charAt(0).toUpperCase() + slug.slice(1) || 'Home',
+        colors: extractColors(fullCss, p.html),
+        typography: extractTypography(fullCss),
+        spacing: extractSpacing(fullCss),
+        components: extractComponents(p.html, fullCss),
+      }
+    }))
 
-    const colors = extractColors(allCss, allHtml)
-    const typography = extractTypography(allCss)
-    const spacing = extractSpacing(allCss)
-    const components = extractComponents(allHtml, allCss)
-
-    const pageList = pages.map(p => p.url).join(', ')
+    // Global deduped colors/typography across all pages
+    const allCss = pagesAnalyzed.map(p => p.colors.map(c => c.hex).join(' ')).join(' ')
+    const seenHex = new Set<string>()
+    const globalColors = pagesAnalyzed.flatMap(p => p.colors).filter(c => {
+      if (seenHex.has(c.hex)) return false
+      seenHex.add(c.hex)
+      return true
+    }).slice(0, 12)
 
     const handoff = {
-      colors,
-      typography,
-      spacing,
-      components,
-      summary: `Handoff gerado a partir de ${pages.length} página${pages.length !== 1 ? 's' : ''} de ${vercelUrl}${repoUrl ? ` + repositório` : ''}. Páginas analisadas: ${pageList}. Encontrados ${colors.length} cores, ${typography.length} estilos de texto, ${spacing.length} valores de espaçamento e ${components.length} componentes.`,
+      pages: pagesAnalyzed,
+      colors: globalColors,
+      typography: pagesAnalyzed[0]?.typography ?? [],
+      spacing: pagesAnalyzed[0]?.spacing ?? [],
+      components: [...new Map(pagesAnalyzed.flatMap(p => p.components).map(c => [c.name, c])).values()].slice(0, 6),
+      summary: `Analisadas ${pages.length} página${pages.length !== 1 ? 's' : ''}: ${pagesAnalyzed.map(p => p.label).join(', ')}.${repoUrl ? ' Inclui dados do repositório.' : ''}`,
     }
-
-    const screenshotData = screenshot ? `data:image/png;base64,${screenshot}` : null
 
     // Save to DB
     const supabase = getSupabase()
@@ -468,7 +479,6 @@ export async function POST(req: Request) {
       .insert({
         review_id: reviewId,
         data: handoff,
-        screenshot: screenshotData,
         pages_analyzed: pages.map(p => p.url),
       })
       .select('id, created_at')
@@ -477,7 +487,6 @@ export async function POST(req: Request) {
     return NextResponse.json({
       id: saved?.id,
       handoff,
-      screenshot: screenshotData,
       created_at: saved?.created_at,
     }, { headers: CORS })
   } catch (err: any) {
