@@ -431,7 +431,7 @@ export async function POST(req: Request) {
     // Use pre-rendered HTML from browser if provided, otherwise crawl
     let pages: { url: string; html: string }[]
     if (preRenderedPages?.length) {
-      pages = preRenderedPages.map((p: any) => ({ url: p.url, html: p.html }))
+      pages = preRenderedPages.map((p: any) => ({ url: p.url, html: p.html, label: p.label }))
     } else {
       const origin = new URL(vercelUrl).origin
       const manualUrls = (manualRoutes ?? [])
@@ -447,9 +447,10 @@ export async function POST(req: Request) {
       const css = await fetchCSSFiles(p.html, p.url)
       const fullCss = css + '\n' + repoContent
       const slug = new URL(p.url).pathname.replace(/\//g, ' ').trim() || 'Home'
+      const label = (p as any).label || slug.charAt(0).toUpperCase() + slug.slice(1) || 'Home'
       return {
         url: p.url,
-        label: slug.charAt(0).toUpperCase() + slug.slice(1) || 'Home',
+        label,
         colors: extractColors(fullCss, p.html),
         typography: extractTypography(fullCss),
         spacing: extractSpacing(fullCss),
