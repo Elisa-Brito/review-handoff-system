@@ -550,6 +550,7 @@
       const globalIndex = pins.indexOf(pin)
       const el = document.createElement('div')
       el.className = 'rh-pin' + (pin.status === 'resolved' ? ' resolved' : '')
+      el.dataset.pinId = pin.id
       const pos = pinViewportPos(pin)
       el.style.left = `${pos.x - 14}px`
       el.style.top = `${pos.y - 14}px`
@@ -615,6 +616,27 @@
     observer.observe(document.body, { childList: true, subtree: true })
   }
 
+  function scrollToPin(pin) {
+    const container = getPinContainer()
+    const margin = 120 // pixels above the pin for breathing room
+    if (container !== document.body) {
+      const targetTop = pin.y_percent / 100 * container.scrollHeight - margin
+      container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' })
+    } else {
+      const targetTop = pin.y_percent / 100 * document.documentElement.scrollHeight - margin
+      window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' })
+    }
+    // flash the pin balloon
+    setTimeout(() => {
+      const el = document.querySelector(`.rh-pin[data-pin-id="${pin.id}"]`)
+      if (!el) return
+      el.style.transition = 'transform .15s ease, box-shadow .15s ease'
+      el.style.transform = 'scale(1.5)'
+      el.style.boxShadow = '0 0 0 4px rgba(99,102,241,.5)'
+      setTimeout(() => { el.style.transform = ''; el.style.boxShadow = '' }, 600)
+    }, 400)
+  }
+
   function renderPinsList() {
     const list = document.getElementById('rh-pins-list')
     if (!list) return
@@ -660,10 +682,10 @@
 
       return `
         <div class="rh-card" data-pin-id="${pin.id}">
-          <div class="rh-card-header">
+          <div class="rh-card-header rh-goto-pin" data-pin-id="${pin.id}" style="cursor:pointer" title="Ver no canvas">
             <div class="rh-badge ${pin.status === 'resolved' ? 'resolved' : ''}">${i + 1}</div>
             <p class="rh-author">${pin.author_name || 'Anônimo'}</p>
-            ${pin.status === 'resolved' ? '<p class="rh-author" style="margin-left:auto;color:#22c55e">✓ resolvido</p>' : ''}
+            ${pin.status === 'resolved' ? '<p class="rh-author" style="margin-left:auto;color:#22c55e">✓ resolvido</p>' : '<span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,.25)">↗ ver</span>'}
           </div>
           <p class="rh-body">${pin.body}</p>
           <div class="rh-card-actions">
@@ -704,6 +726,12 @@
     })
     list.querySelectorAll('.rh-reply-send').forEach(btn => {
       btn.onclick = () => sendReply(btn.dataset.pin)
+    })
+    list.querySelectorAll('.rh-goto-pin').forEach(header => {
+      header.onclick = () => {
+        const pin = pins.find(p => p.id === header.dataset.pinId)
+        if (pin) scrollToPin(pin)
+      }
     })
     // lixeiras — distingue pin vs reply pelo dataset
     list.querySelectorAll('.rh-trash').forEach(btn => {
