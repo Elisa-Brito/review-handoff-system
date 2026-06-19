@@ -306,10 +306,10 @@ function extractTypography(css: string): { name: string; fontFamily: string; fon
   const family = [...families][0] ?? 'Inter, sans-serif'
 
   const scale = [
-    { name: 'Display', size: topSizes[0] ?? '2.25rem', weight: '700', lh: '1.2', usage: 'Títulos principais' },
-    { name: 'Heading', size: topSizes[1] ?? '1.5rem', weight: '600', lh: '1.3', usage: 'Subtítulos e seções' },
-    { name: 'Body', size: topSizes[2] ?? '1rem', weight: '400', lh: '1.5', usage: 'Texto corrido' },
-    { name: 'Small', size: topSizes[3] ?? '0.875rem', weight: '400', lh: '1.4', usage: 'Labels e captions' },
+    { name: 'Display', size: topSizes[0] ?? '2.25rem', weight: '700', lh: '1.2', usage: 'Main headings' },
+    { name: 'Heading', size: topSizes[1] ?? '1.5rem', weight: '600', lh: '1.3', usage: 'Subheadings and sections' },
+    { name: 'Body', size: topSizes[2] ?? '1rem', weight: '400', lh: '1.5', usage: 'Body text' },
+    { name: 'Small', size: topSizes[3] ?? '0.875rem', weight: '400', lh: '1.4', usage: 'Labels and captions' },
   ]
 
   for (const s of scale) {
@@ -343,7 +343,7 @@ function extractSpacing(css: string): { name: string; value: string; usage: stri
     .map(([val], i) => ({
       name: labels[i] ?? `space-${i + 1}`,
       value: val,
-      usage: i === 0 ? 'Espaços internos pequenos' : i < 3 ? 'Padding de componentes' : 'Espaço entre seções',
+      usage: i === 0 ? 'Small inner spacing' : i < 3 ? 'Component padding' : 'Space between sections',
     }))
 }
 
@@ -351,14 +351,14 @@ function extractComponents(html: string, css: string): { name: string; descripti
   const components: { name: string; description: string; props: string[]; cssSnippet: string }[] = []
 
   const componentPatterns = [
-    { pattern: /class=["'][^"']*(?:btn|button)[^"']*["']/i, name: 'Button', desc: 'Botão de ação', props: ['variant', 'size', 'disabled'], css: '.btn {\n  padding: 0.5rem 1rem;\n  border-radius: 0.375rem;\n  font-weight: 600;\n  cursor: pointer;\n}' },
-    { pattern: /class=["'][^"']*(?:card)[^"']*["']/i, name: 'Card', desc: 'Container de conteúdo', props: ['padding', 'shadow', 'border'], css: '.card {\n  border-radius: 0.5rem;\n  padding: 1.5rem;\n  background: white;\n  box-shadow: 0 1px 3px rgba(0,0,0,0.1);\n}' },
-    { pattern: /class=["'][^"']*(?:input|form-control)[^"']*["']/i, name: 'Input', desc: 'Campo de formulário', props: ['type', 'placeholder', 'disabled', 'error'], css: '.input {\n  width: 100%;\n  padding: 0.5rem 0.75rem;\n  border: 1px solid #d1d5db;\n  border-radius: 0.375rem;\n}' },
-    { pattern: /class=["'][^"']*(?:badge|tag|chip)[^"']*["']/i, name: 'Badge', desc: 'Indicador de status', props: ['variant', 'color'], css: '.badge {\n  display: inline-flex;\n  padding: 0.125rem 0.5rem;\n  border-radius: 9999px;\n  font-size: 0.75rem;\n  font-weight: 500;\n}' },
-    { pattern: /class=["'][^"']*(?:nav|navbar|header)[^"']*["']/i, name: 'Navbar', desc: 'Barra de navegação', props: ['sticky', 'transparent'], css: '.navbar {\n  display: flex;\n  align-items: center;\n  padding: 0 1.5rem;\n  height: 64px;\n}' },
-    { pattern: /class=["'][^"']*(?:modal|dialog)[^"']*["']/i, name: 'Modal', desc: 'Caixa de diálogo', props: ['open', 'onClose', 'size'], css: '.modal {\n  position: fixed;\n  inset: 0;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}' },
-    { pattern: /class=["'][^"']*(?:avatar)[^"']*["']/i, name: 'Avatar', desc: 'Foto ou inicial do usuário', props: ['src', 'size', 'fallback'], css: '.avatar {\n  width: 2.5rem;\n  height: 2.5rem;\n  border-radius: 50%;\n  object-fit: cover;\n}' },
-    { pattern: /class=["'][^"']*(?:table)[^"']*["']/i, name: 'Table', desc: 'Tabela de dados', props: ['striped', 'bordered', 'hoverable'], css: '.table {\n  width: 100%;\n  border-collapse: collapse;\n  font-size: 0.875rem;\n}' },
+    { pattern: /class=["'][^"']*(?:btn|button)[^"']*["']/i, name: 'Button', desc: 'Action button', props: ['variant', 'size', 'disabled'], css: '.btn {\n  padding: 0.5rem 1rem;\n  border-radius: 0.375rem;\n  font-weight: 600;\n  cursor: pointer;\n}' },
+    { pattern: /class=["'][^"']*(?:card)[^"']*["']/i, name: 'Card', desc: 'Content container', props: ['padding', 'shadow', 'border'], css: '.card {\n  border-radius: 0.5rem;\n  padding: 1.5rem;\n  background: white;\n  box-shadow: 0 1px 3px rgba(0,0,0,0.1);\n}' },
+    { pattern: /class=["'][^"']*(?:input|form-control)[^"']*["']/i, name: 'Input', desc: 'Form field', props: ['type', 'placeholder', 'disabled', 'error'], css: '.input {\n  width: 100%;\n  padding: 0.5rem 0.75rem;\n  border: 1px solid #d1d5db;\n  border-radius: 0.375rem;\n}' },
+    { pattern: /class=["'][^"']*(?:badge|tag|chip)[^"']*["']/i, name: 'Badge', desc: 'Status indicator', props: ['variant', 'color'], css: '.badge {\n  display: inline-flex;\n  padding: 0.125rem 0.5rem;\n  border-radius: 9999px;\n  font-size: 0.75rem;\n  font-weight: 500;\n}' },
+    { pattern: /class=["'][^"']*(?:nav|navbar|header)[^"']*["']/i, name: 'Navbar', desc: 'Navigation bar', props: ['sticky', 'transparent'], css: '.navbar {\n  display: flex;\n  align-items: center;\n  padding: 0 1.5rem;\n  height: 64px;\n}' },
+    { pattern: /class=["'][^"']*(?:modal|dialog)[^"']*["']/i, name: 'Modal', desc: 'Dialog box', props: ['open', 'onClose', 'size'], css: '.modal {\n  position: fixed;\n  inset: 0;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}' },
+    { pattern: /class=["'][^"']*(?:avatar)[^"']*["']/i, name: 'Avatar', desc: 'User photo or initial', props: ['src', 'size', 'fallback'], css: '.avatar {\n  width: 2.5rem;\n  height: 2.5rem;\n  border-radius: 50%;\n  object-fit: cover;\n}' },
+    { pattern: /class=["'][^"']*(?:table)[^"']*["']/i, name: 'Table', desc: 'Data table', props: ['striped', 'bordered', 'hoverable'], css: '.table {\n  width: 100%;\n  border-collapse: collapse;\n  font-size: 0.875rem;\n}' },
   ]
 
   for (const { pattern, name, desc, props, css: snippet } of componentPatterns) {
@@ -424,7 +424,7 @@ async function fetchRepoFiles(repoUrl: string): Promise<string> {
 export async function POST(req: Request) {
   try {
     const { vercelUrl, repoUrl, manualRoutes, reviewId, pages: preRenderedPages } = await req.json()
-    if (!vercelUrl) return NextResponse.json({ error: 'URL obrigatória' }, { status: 400 })
+    if (!vercelUrl) return NextResponse.json({ error: 'URL required' }, { status: 400 })
 
     const repoContent = repoUrl?.trim() ? await fetchRepoFiles(repoUrl.trim()) : ''
 
@@ -473,7 +473,7 @@ export async function POST(req: Request) {
       typography: pagesAnalyzed[0]?.typography ?? [],
       spacing: pagesAnalyzed[0]?.spacing ?? [],
       components: [...new Map(pagesAnalyzed.flatMap(p => p.components).map(c => [c.name, c])).values()].slice(0, 6),
-      summary: `Analisadas ${pages.length} página${pages.length !== 1 ? 's' : ''}: ${pagesAnalyzed.map(p => p.label).join(', ')}.${repoUrl ? ' Inclui dados do repositório.' : ''}`,
+      summary: `Analysed ${pages.length} page${pages.length !== 1 ? 's' : ''}: ${pagesAnalyzed.map(p => p.label).join(', ')}.${repoUrl ? ' Includes repository data.' : ''}`,
     }
 
     // Save to DB
@@ -502,7 +502,7 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get('id')
-  if (!id) return NextResponse.json({ error: 'id obrigatório' }, { status: 400, headers: CORS })
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400, headers: CORS })
 
   const supabase = getSupabase()
   await supabase.from('handoffs').delete().eq('id', id)

@@ -257,7 +257,7 @@
     const toolbar = document.createElement('div')
     toolbar.id = 'rh-toolbar'
     toolbar.innerHTML = `
-      <button class="rh-tool-btn" id="rh-btn-comment">💬 Comentar</button>
+      <button class="rh-tool-btn" id="rh-btn-comment">💬 Comment</button>
       <div class="rh-divider"></div>
       <button class="rh-tool-btn" id="rh-btn-threads">☰ Threads</button>
       <div class="rh-divider"></div>
@@ -616,9 +616,18 @@
     observer.observe(document.body, { childList: true, subtree: true })
   }
 
-  function scrollToPin(pin) {
+  function flashPin(pinId) {
+    const el = document.querySelector(`.rh-pin[data-pin-id="${pinId}"]`)
+    if (!el) return
+    el.style.transition = 'transform .15s ease, box-shadow .15s ease'
+    el.style.transform = 'scale(1.5)'
+    el.style.boxShadow = '0 0 0 4px rgba(99,102,241,.5)'
+    setTimeout(() => { el.style.transform = ''; el.style.boxShadow = '' }, 700)
+  }
+
+  function doScroll(pin) {
     const container = getPinContainer()
-    const margin = 120 // pixels above the pin for breathing room
+    const margin = 120
     if (container !== document.body) {
       const targetTop = pin.y_percent / 100 * container.scrollHeight - margin
       container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' })
@@ -626,15 +635,48 @@
       const targetTop = pin.y_percent / 100 * document.documentElement.scrollHeight - margin
       window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' })
     }
-    // flash the pin balloon
-    setTimeout(() => {
-      const el = document.querySelector(`.rh-pin[data-pin-id="${pin.id}"]`)
-      if (!el) return
-      el.style.transition = 'transform .15s ease, box-shadow .15s ease'
-      el.style.transform = 'scale(1.5)'
-      el.style.boxShadow = '0 0 0 4px rgba(99,102,241,.5)'
-      setTimeout(() => { el.style.transform = ''; el.style.boxShadow = '' }, 600)
-    }, 400)
+    setTimeout(() => flashPin(pin.id), 500)
+  }
+
+  function navigateToPage(pageKey) {
+    // Try clicking a nav/sidebar item whose text matches the page key
+    const navCandidates = [
+      ...document.querySelectorAll('nav a, nav button, aside a, aside button, [role="navigation"] a, [role="navigation"] button, [role="menuitem"]'),
+    ].filter(el => !isToolbarEl(el))
+    const target = navCandidates.find(el => el.textContent.trim().toLowerCase() === pageKey.toLowerCase())
+    if (target) { target.click(); return true }
+    // fallback: try any clickable element containing the text
+    const all = [...document.querySelectorAll('a, button')].filter(el => !isToolbarEl(el))
+    const fallback = all.find(el => el.textContent.trim().toLowerCase() === pageKey.toLowerCase())
+    if (fallback) { fallback.click(); return true }
+    return false
+  }
+
+  function scrollToPin(pin) {
+    const pinPage = pin.route_path
+    const onCorrectPage = !pinPage || pinPage === '/' || pinPage === _currentPageKey
+
+    if (onCorrectPage) {
+      doScroll(pin)
+      return
+    }
+
+    // Need to navigate first, then scroll once the page renders
+    const navigated = navigateToPage(pinPage)
+    if (!navigated) {
+      // Can't navigate — just scroll anyway (pin may not be visible)
+      doScroll(pin)
+      return
+    }
+    // Wait for the SPA to render the new page, then scroll
+    let attempts = 0
+    const poll = setInterval(() => {
+      attempts++
+      if (_currentPageKey === pinPage || attempts > 20) {
+        clearInterval(poll)
+        doScroll(pin)
+      }
+    }, 150)
   }
 
   function renderPinsList() {
