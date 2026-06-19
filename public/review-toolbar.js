@@ -210,7 +210,7 @@
     panel.id = 'rh-panel'
     panel.innerHTML = `
       <div id="rh-panel-header">
-        <h2 id="rh-panel-title">Comentários</h2>
+        <h2 id="rh-panel-title">Comments</h2>
         <button id="rh-panel-close">✕</button>
       </div>
       <div id="rh-pins-list"></div>
@@ -228,10 +228,10 @@
         <input id="rh-author-input" type="text" placeholder="Seu nome…" autocomplete="off" />
       </div>
       <p id="rh-popover-author" style="color:rgba(255,255,255,.4);font-size:11px;margin:0 0 8px;display:none"></p>
-      <textarea id="rh-textarea" rows="3" placeholder="Digite seu comentário…"></textarea>
+      <textarea id="rh-textarea" rows="3" placeholder="Add a comment…"></textarea>
       <div class="rh-form-actions">
-        <button class="rh-btn-cancel" id="rh-cancel">Cancelar</button>
-        <button class="rh-btn-save" id="rh-save">Salvar</button>
+        <button class="rh-btn-cancel" id="rh-cancel">Cancel</button>
+        <button class="rh-btn-save" id="rh-save">Save</button>
       </div>
     `
     document.body.appendChild(popover)
@@ -326,26 +326,26 @@
 
     const replyFormHTML = isReplying ? `
       <div class="rh-pp-reply-form">
-        <textarea rows="2" placeholder="Sua resposta…" id="rh-pp-reply-body"></textarea>
+        <textarea rows="2" placeholder="Your reply…" id="rh-pp-reply-body"></textarea>
         <div class="rh-pp-reply-actions">
-          <button class="rh-pp-cancel" id="rh-pp-cancel-reply">Cancelar</button>
-          <button class="rh-pp-send" id="rh-pp-send-reply">Enviar</button>
+          <button class="rh-pp-cancel" id="rh-pp-cancel-reply">Cancel</button>
+          <button class="rh-pp-send" id="rh-pp-send-reply">Send</button>
         </div>
       </div>
     ` : ''
 
     pp.innerHTML = `
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
-        <p class="rh-pp-author" style="margin:0">${pin.author_name || 'Anônimo'} · #${pinIndex + 1}</p>
-        <button class="rh-trash" id="rh-pp-delete" title="Deletar comentário" style="flex-shrink:0">${trashIcon(12)}</button>
+        <p class="rh-pp-author" style="margin:0">${pin.author_name || 'Anonymous'} · #${pinIndex + 1}</p>
+        <button class="rh-trash" id="rh-pp-delete" title="Delete comment" style="flex-shrink:0">${trashIcon(12)}</button>
       </div>
       <p class="rh-pp-body">${pin.body}</p>
       ${repliesHTML}
       ${replyFormHTML}
       <div class="rh-pp-footer">
-        <button class="rh-pp-reply-btn" id="rh-pp-reply-toggle">↩ Responder</button>
+        <button class="rh-pp-reply-btn" id="rh-pp-reply-toggle">↩ Reply</button>
         <button class="rh-pp-status" id="rh-pp-status-btn">
-          ${pin.status === 'open' ? 'Marcar resolvido' : 'Reabrir'}
+          ${pin.status === 'open' ? 'Resolve' : 'Reopen'}
         </button>
       </div>
     `
@@ -376,7 +376,7 @@
         const sendBtn = document.getElementById('rh-pp-send-reply')
         sendBtn.disabled = true
         sendBtn.textContent = 'Enviando…'
-        const authorName = getSavedName() || 'Anônimo'
+        const authorName = getSavedName() || 'Anonymous'
         const data = await sbFetch('replies?select=*', {
           method: 'POST',
           prefer: 'return=representation',
@@ -400,7 +400,7 @@
     panelOpen = true
     closePinPopover()
     document.getElementById('rh-panel').classList.add('open')
-    document.getElementById('rh-panel-title').textContent = which === 'handoff' ? 'Handoff' : 'Comentários'
+    document.getElementById('rh-panel-title').textContent = which === 'handoff' ? 'Handoff' : 'Comments'
     document.getElementById('rh-pins-list').style.display = which === 'threads' ? 'flex' : 'none'
     document.getElementById('rh-handoff-content').style.display = which === 'handoff' ? 'flex' : 'none'
     cancelComment()
@@ -644,7 +644,7 @@
     document.getElementById('rh-btn-threads').textContent = `☰ Threads${pins.length > 0 ? ` (${open})` : ''}`
 
     if (pins.length === 0) {
-      list.innerHTML = '<div id="rh-empty">Nenhum comentário ainda.<br>Ative o modo comentário e clique na tela.</div>'
+      list.innerHTML = '<div id="rh-empty">No comments yet.<br>Activate comment mode and click anywhere on the screen.</div>'
       return
     }
 
@@ -659,7 +659,7 @@
                 <p class="rh-reply-author" style="margin:0">${r.author_name}</p>
                 <div style="display:flex;gap:4px;align-items:center">
                   <button class="rh-reply-to-reply-btn" data-reply-id="${r.id}" data-reply-author="${r.author_name}" data-pin="${pin.id}" style="font-size:10px;padding:2px 6px;border-radius:5px;border:1px solid rgba(99,102,241,.25);background:rgba(99,102,241,.07);color:#a5b4fc;cursor:pointer;font-family:inherit">↩</button>
-                  <button class="rh-trash" data-reply-id="${r.id}" data-pin-id="${pin.id}" title="Deletar resposta">${trashIcon(11)}</button>
+                  <button class="rh-trash" data-reply-id="${r.id}" data-pin-id="${pin.id}" title="Delete reply">${trashIcon(11)}</button>
                 </div>
               </div>
               <p class="rh-reply-body">${r.body}</p>
@@ -671,29 +671,29 @@
       const isReplyingToReply = replyingTo === pin.id && replyingToReply
       const replyFormHTML = replyingTo === pin.id ? `
         <div class="rh-reply-form">
-          ${isReplyingToReply ? `<p style="color:#a5b4fc;font-size:11px;margin:0 0 6px">↩ respondendo @${replyingToReply.authorName}</p>` : ''}
-          <textarea rows="2" placeholder="Sua resposta…" id="rh-reply-body-${pin.id}"></textarea>
+          ${isReplyingToReply ? `<p style="color:#a5b4fc;font-size:11px;margin:0 0 6px">↩ replying to @${replyingToReply.authorName}</p>` : ''}
+          <textarea rows="2" placeholder="Your reply…" id="rh-reply-body-${pin.id}"></textarea>
           <div class="rh-reply-actions">
-            <button class="rh-reply-cancel" data-pin="${pin.id}">Cancelar</button>
-            <button class="rh-reply-send" data-pin="${pin.id}">Enviar</button>
+            <button class="rh-reply-cancel" data-pin="${pin.id}">Cancel</button>
+            <button class="rh-reply-send" data-pin="${pin.id}">Send</button>
           </div>
         </div>
       ` : ''
 
       return `
         <div class="rh-card" data-pin-id="${pin.id}">
-          <div class="rh-card-header rh-goto-pin" data-pin-id="${pin.id}" style="cursor:pointer" title="Ver no canvas">
+          <div class="rh-card-header rh-goto-pin" data-pin-id="${pin.id}" style="cursor:pointer" title="Jump to pin">
             <div class="rh-badge ${pin.status === 'resolved' ? 'resolved' : ''}">${i + 1}</div>
-            <p class="rh-author">${pin.author_name || 'Anônimo'}</p>
-            ${pin.status === 'resolved' ? '<p class="rh-author" style="margin-left:auto;color:#22c55e">✓ resolvido</p>' : '<span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,.25)">↗ ver</span>'}
+            <p class="rh-author">${pin.author_name || 'Anonymous'}</p>
+            ${pin.status === 'resolved' ? '<p class="rh-author" style="margin-left:auto;color:#22c55e">✓ resolved</p>' : '<span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,.25)">↗ view</span>'}
           </div>
           <p class="rh-body">${pin.body}</p>
           <div class="rh-card-actions">
-            <button class="rh-reply-btn" data-pin="${pin.id}">↩ Responder</button>
+            <button class="rh-reply-btn" data-pin="${pin.id}">↩ Reply</button>
             <button class="rh-status-btn" data-id="${pin.id}" data-status="${pin.status}">
-              ${pin.status === 'open' ? 'Marcar resolvido' : 'Reabrir'}
+              ${pin.status === 'open' ? 'Resolve' : 'Reopen'}
             </button>
-            <button class="rh-trash" data-pin-id="${pin.id}" title="Deletar comentário">${trashIcon(13)}</button>
+            <button class="rh-trash" data-pin-id="${pin.id}" title="Delete comment">${trashIcon(13)}</button>
           </div>
           ${repliesHTML}
           ${replyFormHTML}
@@ -751,10 +751,10 @@
     if (!body) return
     const inputName = document.getElementById('rh-author-input')?.value.trim()
     if (inputName) saveName(inputName)
-    const authorName = getSavedName() || inputName || 'Anônimo'
+    const authorName = getSavedName() || inputName || 'Anonymous'
     const btn = document.getElementById('rh-save')
     btn.disabled = true
-    btn.textContent = 'Salvando…'
+    btn.textContent = 'Saving…'
     const data = await sbFetch('pins?select=*', {
       method: 'POST',
       prefer: 'return=representation',
@@ -778,7 +778,7 @@
     document.getElementById('rh-overlay').classList.remove('active')
     updateToolbar()
     btn.disabled = false
-    btn.textContent = 'Salvar'
+    btn.textContent = 'Save'
   }
 
   async function sendReply(pinId) {
@@ -787,9 +787,9 @@
     if (!rawBody) return
     const mention = replyingToReply ? `@${replyingToReply.authorName} ` : ''
     const body = mention + rawBody
-    const authorName = getSavedName() || 'Anônimo'
+    const authorName = getSavedName() || 'Anonymous'
     const sendBtn = document.querySelector(`.rh-reply-send[data-pin="${pinId}"]`)
-    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Enviando…' }
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…' }
     const data = await sbFetch('replies?select=*', {
       method: 'POST',
       prefer: 'return=representation',
@@ -805,7 +805,7 @@
   }
 
   async function deletePin(pinId) {
-    if (!confirm('Deletar este comentário e todas as respostas?')) return
+    if (!confirm('Delete this comment and all replies?')) return
     await sbFetch(`pins?id=eq.${pinId}`, { method: 'DELETE', prefer: 'return=minimal' })
     pins = pins.filter(p => p.id !== pinId)
     delete replies[pinId]
@@ -890,32 +890,32 @@
 
       container.innerHTML = `
         <div class="rh-handoff-section">
-          <p class="rh-handoff-label">Repositório (opcional)</p>
+          <p class="rh-handoff-label">Repository (optional)</p>
           <input id="rh-repo-input" type="text" value="${handoffRepoUrl}" placeholder="https://github.com/user/repo"
             style="width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:7px;color:#fff;font-size:12px;padding:7px 9px;font-family:inherit;box-sizing:border-box;outline:none;margin-bottom:4px" />
         </div>
         <div class="rh-handoff-section">
           <p class="rh-handoff-label" style="display:flex;align-items:center;justify-content:space-between">
-            Páginas adicionais
-            <button id="rh-add-page" style="font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.08);color:#a5b4fc;cursor:pointer;font-family:inherit">+ Adicionar</button>
+            Additional pages
+            <button id="rh-add-page" style="font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.08);color:#a5b4fc;cursor:pointer;font-family:inherit">+ Add</button>
           </p>
           <div id="rh-pages-list">${manualPagesHTML}</div>
           <p style="color:rgba(255,255,255,.25);font-size:11px;margin:4px 0 0;line-height:1.5">
-            Deixe vazio para analisar só a URL atual.<br>Ou adicione rotas como /dashboard, /login…
+            Leave empty to analyse only the current URL.<br>Or add routes like /dashboard, /login…
           </p>
         </div>
         <button class="rh-generate-btn" id="rh-gen-btn" ${handoffLoading ? 'disabled' : ''}>
-          ${handoffLoading ? '✨ Analisando…' : '✨ Gerar Handoff'}
+          ${handoffLoading ? '✨ Analysing…' : '✨ Generate Handoff'}
         </button>
-        ${handoffLoading ? '<p style="color:rgba(255,255,255,.25);font-size:11px;text-align:center;margin-top:8px">Isso pode levar 30–60 segundos…</p>' : ''}
+        ${handoffLoading ? '<p style="color:rgba(255,255,255,.25);font-size:11px;text-align:center;margin-top:8px">This may take 30–60 seconds…</p>' : ''}
         ${handoffHistory.length > 0 ? `
-          <p class="rh-handoff-label" style="margin-top:16px">Histórico</p>
+          <p class="rh-handoff-label" style="margin-top:16px">History</p>
           ${handoffHistory.map((h, i) => `
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
               <button style="flex:1;text-align:left;padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03);color:rgba(255,255,255,.4);font-size:12px;cursor:pointer;font-family:inherit" data-idx="${i}" class="rh-hist-btn">
-                ${i === 0 ? '● ' : '○ '}${new Date(h.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                ${i === 0 ? '● ' : '○ '}${new Date(h.created_at).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
               </button>
-              <button class="rh-trash rh-hist-del" data-hist-id="${h.id}" data-hist-idx="${i}" title="Deletar">${trashIcon(11)}</button>
+              <button class="rh-trash rh-hist-del" data-hist-id="${h.id}" data-hist-idx="${i}" title="Delete">${trashIcon(11)}</button>
             </div>
           `).join('')}
         ` : ''}
@@ -981,7 +981,7 @@
       <div id="rh-page-content">
         ${activePage ? renderPageSection(activePage) : ''}
       </div>
-      <button class="rh-regenerate-btn" id="rh-regen-btn">↺ Gerar novamente</button>
+      <button class="rh-regenerate-btn" id="rh-regen-btn">↺ Regenerate</button>
     `
 
     container.querySelectorAll('.rh-page-tab').forEach(btn => {
