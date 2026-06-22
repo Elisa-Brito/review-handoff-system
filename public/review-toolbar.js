@@ -888,7 +888,7 @@
     return `
       ${page.colors?.length ? `
         <div class="rh-handoff-section">
-          <p class="rh-handoff-label">🎨 Cores</p>
+          <p class="rh-handoff-label">🎨 Colors</p>
           ${page.colors.map(c => `
             <div class="rh-color-chip" onclick="navigator.clipboard.writeText('${c.hex}')">
               <div class="rh-color-dot" style="background:${c.hex}"></div>
@@ -899,7 +899,7 @@
       ` : ''}
       ${page.typography?.length ? `
         <div class="rh-handoff-section">
-          <p class="rh-handoff-label">✏️ Tipografia</p>
+          <p class="rh-handoff-label">✏️ Typography</p>
           ${page.typography.map(t => `
             <div class="rh-type-row">
               <div class="rh-type-name">${t.name}</div>
@@ -910,7 +910,7 @@
       ` : ''}
       ${page.components?.length ? `
         <div class="rh-handoff-section">
-          <p class="rh-handoff-label">🧩 Componentes</p>
+          <p class="rh-handoff-label">🧩 Components</p>
           <div>${page.components.map(c => `<span class="rh-comp-chip">${c.name}</span>`).join('')}</div>
         </div>
       ` : ''}
@@ -924,7 +924,7 @@
     if (!handoffData) {
       const manualPagesHTML = handoffManualPages.map((p, i) => `
         <div style="display:flex;gap:6px;margin-bottom:6px">
-          <input type="text" value="${p.path}" placeholder="/pagina" data-page-idx="${i}"
+          <input type="text" value="${p.path}" placeholder="/page" data-page-idx="${i}"
             style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:7px;color:#fff;font-size:12px;padding:6px 9px;font-family:inherit;box-sizing:border-box;outline:none" class="rh-page-input" />
           <button data-del-idx="${i}" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(239,68,68,.25);background:rgba(239,68,68,.07);color:#f87171;cursor:pointer;font-size:11px" class="rh-del-page">${trashIcon(11)}</button>
         </div>
