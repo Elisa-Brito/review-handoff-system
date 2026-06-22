@@ -369,8 +369,8 @@ function extractComponents(html: string, css: string): { name: string; descripti
 
   if (components.length === 0) {
     components.push(
-      { name: 'Button', description: 'Botão de ação principal', props: ['variant', 'size', 'disabled'], cssSnippet: '.btn {\n  padding: 0.5rem 1.25rem;\n  border-radius: 0.375rem;\n  font-weight: 600;\n}' },
-      { name: 'Card', description: 'Container de conteúdo com borda', props: ['padding', 'shadow'], cssSnippet: '.card {\n  border-radius: 0.75rem;\n  padding: 1.5rem;\n  box-shadow: 0 1px 3px rgba(0,0,0,0.1);\n}' },
+      { name: 'Button', description: 'Primary action button', props: ['variant', 'size', 'disabled'], cssSnippet: '.btn {\n  padding: 0.5rem 1.25rem;\n  border-radius: 0.375rem;\n  font-weight: 600;\n}' },
+      { name: 'Card', description: 'Content container with border', props: ['padding', 'shadow'], cssSnippet: '.card {\n  border-radius: 0.75rem;\n  padding: 1.5rem;\n  box-shadow: 0 1px 3px rgba(0,0,0,0.1);\n}' },
     )
   }
 
