@@ -122,16 +122,17 @@
       #rh-panel-close{background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;padding:4px;line-height:1}
       #rh-pins-list{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
       .rh-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:12px}
-      .rh-card-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+      .rh-card-header{display:flex;align-items:center;gap:8px;margin-bottom:6px;border-radius:6px;padding:2px 4px;margin:-2px -4px;transition:background .15s}
+      .rh-card-header:hover{background:rgba(255,255,255,.05)}
       .rh-badge{width:20px;height:20px;border-radius:50%;background:#6366f1;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
       .rh-badge.resolved{background:#22c55e}
-      .rh-author{color:rgba(255,255,255,.5);font-size:11px;margin:0}
-      .rh-body{color:rgba(255,255,255,.85);font-size:13px;line-height:1.5;margin:0}
+      .rh-author{color:rgba(255,255,255,.4);font-size:10px;margin:0}
+      .rh-body{color:#fff;font-size:13px;font-weight:500;line-height:1.5;margin:0}
       .rh-card-actions{display:flex;gap:6px;margin-top:8px;align-items:center}
-      .rh-status-btn{font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:rgba(255,255,255,.8);cursor:pointer;font-family:inherit}
-      .rh-status-btn:hover{background:rgba(255,255,255,.12);color:#fff}
-      .rh-reply-btn{font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.08);color:#a5b4fc;cursor:pointer;font-family:inherit}
-      .rh-reply-btn:hover{background:rgba(99,102,241,.18);color:#c7d2fe}
+      .rh-reply-btn{font-size:11px;padding:4px 10px;border-radius:6px;border:none;background:#6366f1;color:#fff;cursor:pointer;font-family:inherit;font-weight:600}
+      .rh-reply-btn:hover{background:#4f46e5}
+      .rh-status-btn{font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.18);background:transparent;color:rgba(255,255,255,.55);cursor:pointer;font-family:inherit}
+      .rh-status-btn:hover{border-color:rgba(255,255,255,.35);color:rgba(255,255,255,.85)}
       .rh-replies{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;gap:6px}
       .rh-reply{background:rgba(255,255,255,.03);border-radius:8px;padding:8px 10px;position:relative}
       .rh-reply-author{color:rgba(255,255,255,.4);font-size:10px;margin:0 0 3px}

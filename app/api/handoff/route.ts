@@ -244,11 +244,13 @@ function extractColors(css: string, html: string): { name: string; hex: string; 
     .sort((a, b) => b[1] - a[1])
     .slice(0, 12)
 
-  return sorted.map(([hex]) => ({
-    name: guessColorName(hex),
-    hex,
-    usage: guessColorUsage(hex, css),
-  }))
+  const roleLabels = ['Primary', 'Secondary', 'Accent', 'Surface', 'Highlight']
+  return sorted.map(([hex], i) => {
+    const baseName = guessColorName(hex)
+    const role = i < roleLabels.length ? roleLabels[i] : null
+    const name = role ? `${role} · ${baseName}` : baseName
+    return { name, hex, usage: guessColorUsage(hex, css) }
+  })
 }
 
 function guessColorName(hex: string): string {
