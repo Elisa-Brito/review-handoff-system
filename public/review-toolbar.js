@@ -90,17 +90,17 @@
 
       /* Mini-popover ao clicar no pin */
       #rh-pin-popover{position:fixed;width:240px;background:#1c1c1f;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:none}
-      #rh-pin-popover .rh-pp-author{color:rgba(255,255,255,.4);font-size:10px;margin:0 0 4px}
-      #rh-pin-popover .rh-pp-body{color:rgba(255,255,255,.88);font-size:13px;line-height:1.5;margin:0 0 8px}
+      #rh-pin-popover .rh-pp-author{color:rgba(255,255,255,.35);font-size:10px;margin:0 0 4px}
+      #rh-pin-popover .rh-pp-body{color:#fff;font-size:13px;font-weight:500;line-height:1.5;margin:0 0 8px}
       #rh-pin-popover .rh-pp-replies{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;max-height:140px;overflow-y:auto}
       #rh-pin-popover .rh-pp-reply{background:rgba(255,255,255,.04);border-radius:7px;padding:6px 8px}
       #rh-pin-popover .rh-pp-reply-author{color:rgba(255,255,255,.35);font-size:10px;margin:0 0 2px}
       #rh-pin-popover .rh-pp-reply-body{color:rgba(255,255,255,.7);font-size:12px;line-height:1.4;margin:0}
       #rh-pin-popover .rh-pp-footer{display:flex;gap:6px;align-items:center;border-top:1px solid rgba(255,255,255,.06);padding-top:8px;margin-top:4px}
-      #rh-pin-popover .rh-pp-reply-btn{font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.08);color:#a5b4fc;cursor:pointer;font-family:inherit}
-      #rh-pin-popover .rh-pp-reply-btn:hover{background:rgba(99,102,241,.18)}
-      #rh-pin-popover .rh-pp-status{font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.05);color:rgba(255,255,255,.7);cursor:pointer;font-family:inherit}
-      #rh-pin-popover .rh-pp-status:hover{background:rgba(255,255,255,.1)}
+      #rh-pin-popover .rh-pp-reply-btn{font-size:11px;padding:4px 10px;border-radius:6px;border:none;background:#6366f1;color:#fff;font-weight:600;cursor:pointer;font-family:inherit}
+      #rh-pin-popover .rh-pp-reply-btn:hover{background:#4f46e5}
+      #rh-pin-popover .rh-pp-status{font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.18);background:transparent;color:rgba(255,255,255,.55);cursor:pointer;font-family:inherit}
+      #rh-pin-popover .rh-pp-status:hover{border-color:rgba(255,255,255,.35);color:rgba(255,255,255,.85)}
       #rh-pin-popover .rh-pp-reply-form{margin-top:8px}
       #rh-pin-popover .rh-pp-reply-form textarea{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:7px;color:#fff;font-size:12px;padding:7px 9px;font-family:inherit;box-sizing:border-box;outline:none;resize:none;margin-bottom:6px}
       #rh-pin-popover .rh-pp-reply-form textarea::placeholder{color:rgba(255,255,255,.25)}
@@ -151,7 +151,8 @@
       .rh-trash:hover{background:rgba(239,68,68,.18);color:#fca5a5;border-color:rgba(239,68,68,.4)}
 
       .rh-form-actions{display:flex;gap:8px;margin-top:8px}
-      .rh-btn-cancel{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:rgba(255,255,255,.8);font-size:13px;cursor:pointer;font-family:inherit}
+      .rh-btn-cancel{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:transparent;color:rgba(255,255,255,.55);font-size:13px;cursor:pointer;font-family:inherit}
+      .rh-btn-cancel:hover{border-color:rgba(255,255,255,.35);color:rgba(255,255,255,.85)}
       .rh-btn-save{flex:1;padding:8px;border-radius:8px;border:none;background:#6366f1;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
       .rh-btn-save:disabled{opacity:.5;cursor:not-allowed}
       #rh-toolbar{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:2147483646;display:flex;align-items:center;gap:4px;background:#1c1c1f;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:6px 10px;box-shadow:0 8px 32px rgba(0,0,0,.5);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
