@@ -478,20 +478,41 @@
     return el.closest('#rh-panel, #rh-toolbar, #rh-popover, #rh-pin-popover, #rh-overlay')
   }
 
+  function getElText(el) {
+    return (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim()
+  }
+
+  function detectActiveNavEl() {
+    // 1. aria/data attributes
+    const aria = [...document.querySelectorAll('[aria-current="page"],[aria-selected="true"],[data-active="true"],[data-selected="true"]')]
+      .find(el => !isToolbarEl(el))
+    if (aria) return aria
+
+    // 2. class name contains active/selected/current
+    const byClass = [...document.querySelectorAll('nav button,nav a,aside button,aside a,[role="menuitem"],[role="tab"]')]
+      .find(el => !isToolbarEl(el) && /active|selected|current/i.test(el.className || ''))
+    if (byClass) return byClass
+
+    // 3. nav button with non-transparent background (e.g. Tailwind bg-blue-500/20)
+    const byBg = [...document.querySelectorAll('nav button,nav a,aside button,aside a')]
+      .find(el => {
+        if (isToolbarEl(el)) return false
+        const bg = window.getComputedStyle(el).backgroundColor
+        return bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent'
+      })
+    return byBg || null
+  }
+
   function detectPageKey() {
     if (location.pathname && location.pathname !== '/') return location.pathname
 
-    // Active nav/sidebar item (outside toolbar)
-    const activeNav = [...document.querySelectorAll(
-      '[aria-current="page"], nav [class*="active"], aside [class*="active"], ' +
-      '[class*="selected"], [class*="current"], [data-active="true"], [data-selected="true"]'
-    )].find(el => !isToolbarEl(el))
-    if (activeNav) {
-      const text = activeNav.textContent.trim().slice(0, 60)
+    const activeEl = detectActiveNavEl()
+    if (activeEl) {
+      const text = getElText(activeEl).slice(0, 60)
       if (text) return text
     }
 
-    // First visible h1 outside toolbar (h1 = page title, h2 = section)
+    // First visible h1 outside toolbar
     const heading = [...document.querySelectorAll('h1')]
       .find(el => {
         if (isToolbarEl(el)) return false
@@ -500,7 +521,6 @@
       })
     if (heading) return heading.textContent.trim().slice(0, 60)
 
-    // Return null when no heading found — caller keeps current key
     return null
   }
 
@@ -599,6 +619,23 @@
       }, 400)
     }
 
+    // Track nav clicks directly — works even when active class doesn't contain "active"
+    document.addEventListener('click', (e) => {
+      if (isToolbarEl(e.target)) return
+      const navEl = e.target.closest('nav a,nav button,aside a,aside button,[role="menuitem"],[role="tab"]')
+      if (!navEl || isToolbarEl(navEl)) return
+      const text = getElText(navEl).slice(0, 60)
+      if (!text) return
+      setTimeout(() => {
+        if (text !== _currentPageKey) {
+          _currentPageKey = text
+          closePinPopover()
+          renderPins()
+          setTimeout(captureCurrentPage, 300)
+        }
+      }, 80) // small delay so React renders before we re-render pins
+    }, true) // capture phase — fires before React handlers
+
     // URL-based routing
     const orig = history.pushState.bind(history)
     history.pushState = (...args) => { orig(...args); onPageChange() }
@@ -647,29 +684,22 @@
     setTimeout(() => flashPin(pin.id), 500)
   }
 
-  function getElText(el) {
-    // innerText respects visibility and skips hidden SVG text; fallback to textContent
-    return (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase()
-  }
-
   function navigateToPage(pageKey) {
     const key = pageKey.toLowerCase()
-    // 1. Prefer nav/sidebar elements — exact match first
     const navCandidates = [...document.querySelectorAll(
-      'nav a, nav button, aside a, aside button, [role="navigation"] a, [role="navigation"] button, [role="menuitem"], [role="tab"]'
+      'nav a,nav button,aside a,aside button,[role="navigation"] a,[role="navigation"] button,[role="menuitem"],[role="tab"]'
     )].filter(el => !isToolbarEl(el))
 
-    const exact = navCandidates.find(el => getElText(el) === key)
+    // exact match
+    const exact = navCandidates.find(el => getElText(el).toLowerCase() === key)
     if (exact) { exact.click(); return true }
 
-    // 2. Partial match — nav item text contains the key
-    const partial = navCandidates.find(el => getElText(el).includes(key))
+    // partial match
+    const partial = navCandidates.find(el => {
+      const t = getElText(el).toLowerCase()
+      return t.includes(key) || key.includes(t)
+    })
     if (partial) { partial.click(); return true }
-
-    // 3. Fallback: any link or button whose text includes the key
-    const all = [...document.querySelectorAll('a, button')].filter(el => !isToolbarEl(el))
-    const fallback = all.find(el => getElText(el).includes(key))
-    if (fallback) { fallback.click(); return true }
 
     return false
   }
