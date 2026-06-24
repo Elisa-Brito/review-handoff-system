@@ -647,17 +647,30 @@
     setTimeout(() => flashPin(pin.id), 500)
   }
 
+  function getElText(el) {
+    // innerText respects visibility and skips hidden SVG text; fallback to textContent
+    return (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase()
+  }
+
   function navigateToPage(pageKey) {
-    // Try clicking a nav/sidebar item whose text matches the page key
-    const navCandidates = [
-      ...document.querySelectorAll('nav a, nav button, aside a, aside button, [role="navigation"] a, [role="navigation"] button, [role="menuitem"]'),
-    ].filter(el => !isToolbarEl(el))
-    const target = navCandidates.find(el => el.textContent.trim().toLowerCase() === pageKey.toLowerCase())
-    if (target) { target.click(); return true }
-    // fallback: try any clickable element containing the text
+    const key = pageKey.toLowerCase()
+    // 1. Prefer nav/sidebar elements — exact match first
+    const navCandidates = [...document.querySelectorAll(
+      'nav a, nav button, aside a, aside button, [role="navigation"] a, [role="navigation"] button, [role="menuitem"], [role="tab"]'
+    )].filter(el => !isToolbarEl(el))
+
+    const exact = navCandidates.find(el => getElText(el) === key)
+    if (exact) { exact.click(); return true }
+
+    // 2. Partial match — nav item text contains the key
+    const partial = navCandidates.find(el => getElText(el).includes(key))
+    if (partial) { partial.click(); return true }
+
+    // 3. Fallback: any link or button whose text includes the key
     const all = [...document.querySelectorAll('a, button')].filter(el => !isToolbarEl(el))
-    const fallback = all.find(el => el.textContent.trim().toLowerCase() === pageKey.toLowerCase())
+    const fallback = all.find(el => getElText(el).includes(key))
     if (fallback) { fallback.click(); return true }
+
     return false
   }
 
@@ -806,10 +819,9 @@
         const pin = pins.find(p => p.id === header.dataset.pinId)
         if (!pin) return
         if (pin.status === 'resolved') {
-          // show pin temporarily with opacity
           highlightedPinId = pin.id
           renderPins()
-          setTimeout(() => { highlightedPinId = null; renderPins() }, 3000)
+          setTimeout(() => { highlightedPinId = null; renderPins() }, 6000)
         }
         scrollToPin(pin)
       }

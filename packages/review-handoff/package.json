@@ -1,6 +1,6 @@
 {
   "name": "review-handoff-plugin",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Toolbar de comentários para protótipos Next.js",
   "bin": {
     "review-handoff": "bin/init.js",
