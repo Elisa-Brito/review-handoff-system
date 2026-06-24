@@ -54,21 +54,13 @@ function removeNextJs() {
 }
 
 function removeHtml() {
-  // Remove o arquivo JS
+  // Remove arquivo local se existir (versões antigas)
   const scriptPath = path.join(cwd, 'review-toolbar.js')
   const scriptPathPublic = path.join(cwd, 'public', 'review-toolbar.js')
+  if (fs.existsSync(scriptPath)) { fs.unlinkSync(scriptPath); console.log('✓ review-toolbar.js removido') }
+  if (fs.existsSync(scriptPathPublic)) { fs.unlinkSync(scriptPathPublic); console.log('✓ public/review-toolbar.js removido') }
 
-  if (fs.existsSync(scriptPath)) {
-    fs.unlinkSync(scriptPath)
-    console.log('✓ review-toolbar.js removido')
-  } else if (fs.existsSync(scriptPathPublic)) {
-    fs.unlinkSync(scriptPathPublic)
-    console.log('✓ public/review-toolbar.js removido')
-  } else {
-    console.log('⚠️  review-toolbar.js não encontrado')
-  }
-
-  // Remove a tag script do HTML
+  // Remove a tag script do HTML (CDN ou local)
   const htmlPaths = [
     path.join(cwd, 'index.html'),
     path.join(cwd, 'public', 'index.html'),
@@ -78,8 +70,9 @@ function removeHtml() {
 
   if (htmlPath) {
     let html = fs.readFileSync(htmlPath, 'utf-8')
-    if (html.includes('review-toolbar.js')) {
-      html = html.replace(/\s*<script src="\/review-toolbar\.js"><\/script>\n?/g, '\n')
+    if (html.includes('review-toolbar.js') || html.includes('review-handoff-plugin')) {
+      html = html.replace(/\s*<script[^>]*review-toolbar\.js[^>]*><\/script>\n?/g, '\n')
+      html = html.replace(/\s*<script[^>]*review-handoff-plugin[^>]*><\/script>\n?/g, '\n')
       fs.writeFileSync(htmlPath, html, 'utf-8')
       console.log(`✓ Script removido de ${htmlPath.replace(cwd, '.')}`)
     } else {
