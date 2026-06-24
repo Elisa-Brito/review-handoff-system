@@ -527,6 +527,7 @@
   let _currentPageKey = null
   let _pinContainer = null
   let _capturedPages = {} // { pageKey: html }
+  let _pageNavMap = {} // { routePath: navButtonText } — built lazily as user navigates
 
   function getPinContainer() {
     if (_pinContainer) return _pinContainer
@@ -632,22 +633,20 @@
       }, 400)
     }
 
-    // Track nav clicks directly — works even when active class doesn't contain "active"
+    // Track nav clicks — record h1→navText mapping so we can navigate to any page later
     document.addEventListener('click', (e) => {
       if (isToolbarEl(e.target)) return
       const navEl = e.target.closest('nav a,nav button,aside a,aside button,[role="menuitem"],[role="tab"]')
       if (!navEl || isToolbarEl(navEl)) return
-      const text = getElText(navEl).slice(0, 60)
-      if (!text) return
+      const navText = getElText(navEl).slice(0, 60)
+      // After React renders the new page, record the h1→nav mapping
       setTimeout(() => {
-        if (text !== _currentPageKey) {
-          _currentPageKey = text
-          closePinPopover()
-          renderPins()
-          setTimeout(captureCurrentPage, 300)
-        }
-      }, 80) // small delay so React renders before we re-render pins
-    }, true) // capture phase — fires before React handlers
+        const h1 = currentH1Text()
+        if (h1) _pageNavMap[h1] = navText || h1
+        if (navText) _pageNavMap[navText] = navText
+        // Let onPageChange (MutationObserver) update _currentPageKey naturally
+      }, 450)
+    }, true)
 
     // URL-based routing
     const orig = history.pushState.bind(history)
@@ -698,48 +697,74 @@
   }
 
   function navigateToPage(pageKey) {
-    const key = pageKey.toLowerCase()
     const navCandidates = [...document.querySelectorAll(
       'nav a,nav button,aside a,aside button,[role="navigation"] a,[role="navigation"] button,[role="menuitem"],[role="tab"]'
     )].filter(el => !isToolbarEl(el))
 
-    // exact match
-    const exact = navCandidates.find(el => getElText(el).toLowerCase() === key)
+    // Resolve via cached h1→navText map (works even when sidebar is collapsed)
+    const mappedNavText = _pageNavMap[pageKey]
+    if (mappedNavText) {
+      const mapped = navCandidates.find(el => getElText(el).toLowerCase() === mappedNavText.toLowerCase())
+      if (mapped) { mapped.click(); return true }
+    }
+
+    // Direct text match (works for new pins that stored nav button text as route_path)
+    const key = pageKey.toLowerCase()
+    const exact = navCandidates.find(el => {
+      const t = getElText(el).toLowerCase()
+      return t && t === key
+    })
     if (exact) { exact.click(); return true }
 
-    // partial match
     const partial = navCandidates.find(el => {
       const t = getElText(el).toLowerCase()
-      return t.includes(key) || key.includes(t)
+      return t && (t.includes(key) || key.includes(t))
     })
     if (partial) { partial.click(); return true }
 
     return false
   }
 
+  function onPinPage(pinPage) {
+    if (!pinPage || pinPage === '/') return true
+    if (pinPage === _currentPageKey) return true
+    const h1 = currentH1Text()
+    if (h1 && (h1 === pinPage || _pageNavMap[pinPage] === _pageNavMap[h1])) return true
+    return false
+  }
+
   function scrollToPin(pin) {
     const pinPage = pin.route_path
-    const onCorrectPage = !pinPage || pinPage === '/' || pinPage === _currentPageKey
 
-    if (onCorrectPage) {
+    if (onPinPage(pinPage)) {
       doScroll(pin)
       return
     }
 
-    // Need to navigate first, then scroll once the page renders
     const navigated = navigateToPage(pinPage)
     if (!navigated) {
-      // Can't navigate — just scroll anyway (pin may not be visible)
-      doScroll(pin)
+      // Fallback: try every nav button in sequence until h1 matches
+      const navBtns = [...document.querySelectorAll('nav button,aside button')].filter(el => !isToolbarEl(el) && getElText(el))
+      let idx = 0
+      const tryNext = () => {
+        if (idx >= navBtns.length) { doScroll(pin); return }
+        navBtns[idx++].click()
+        setTimeout(() => {
+          if (onPinPage(pinPage)) { setTimeout(() => { renderPins(); doScroll(pin) }, 100); return }
+          tryNext()
+        }, 350)
+      }
+      tryNext()
       return
     }
-    // Wait for the SPA to render the new page, then scroll
+
+    // Wait for the SPA to render, then scroll
     let attempts = 0
     const poll = setInterval(() => {
       attempts++
-      if (_currentPageKey === pinPage || attempts > 20) {
+      if (onPinPage(pinPage) || attempts > 20) {
         clearInterval(poll)
-        doScroll(pin)
+        if (onPinPage(pinPage)) setTimeout(() => { renderPins(); doScroll(pin) }, 100)
       }
     }, 150)
   }
