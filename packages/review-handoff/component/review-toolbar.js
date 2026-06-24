@@ -548,12 +548,25 @@
     return _pinContainer
   }
 
+  function currentH1Text() {
+    const h1 = [...document.querySelectorAll('h1')].find(el => {
+      if (isToolbarEl(el)) return false
+      const r = el.getBoundingClientRect()
+      return r.width > 0 && r.height > 0
+    })
+    return h1 ? h1.textContent.trim().slice(0, 60) : null
+  }
+
   function visiblePins() {
     const key = _currentPageKey
+    const h1 = currentH1Text()
     return pins.filter(p => {
       if (p.status === 'resolved' && p.id !== highlightedPinId) return false
       if (!p.route_path || p.route_path === '/') return true
-      return p.route_path === key
+      if (p.route_path === key) return true
+      // fallback: pin saved with h1-based key before nav-click tracking was added
+      if (h1 && p.route_path === h1) return true
+      return false
     })
   }
 
