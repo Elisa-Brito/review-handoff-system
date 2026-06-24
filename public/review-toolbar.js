@@ -44,6 +44,8 @@
   let replyingTo = null
   let replyingToReply = null  // { replyId, authorName } para @mention
   let pinPopoverPinId = null
+  let threadsTab = 'open' // 'open' | 'resolved'
+  let highlightedPinId = null // pin resolvido temporariamente visível ao clicar na thread
 
   // Nome persistido via localStorage
   function getSavedName() { try { return localStorage.getItem(LS_NAME_KEY) || '' } catch { return '' } }
@@ -120,7 +122,10 @@
       #rh-panel-header{padding:16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}
       #rh-panel-header h2{color:#fff;font-size:14px;font-weight:600;margin:0;flex:1}
       #rh-panel-close{background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;padding:4px;line-height:1}
-      #rh-pins-list{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+      #rh-pins-list{flex:1;overflow:hidden;padding-top:12px;display:flex;flex-direction:column}
+      .rh-tab{flex:1;padding:6px 0;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.4);font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
+      .rh-tab.active{background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.35);color:#a5b4fc}
+      .rh-card-resolved{opacity:.55}
       .rh-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:12px}
       .rh-card-header{display:flex;align-items:center;gap:8px;margin-bottom:6px;border-radius:6px;padding:2px 4px;margin:-2px -4px;transition:background .15s}
       .rh-card-header:hover{background:rgba(255,255,255,.05)}
@@ -526,6 +531,7 @@
   function visiblePins() {
     const key = _currentPageKey
     return pins.filter(p => {
+      if (p.status === 'resolved' && p.id !== highlightedPinId) return false
       if (!p.route_path || p.route_path === '/') return true
       return p.route_path === key
     })
@@ -553,6 +559,7 @@
       const el = document.createElement('div')
       el.className = 'rh-pin' + (pin.status === 'resolved' ? ' resolved' : '')
       el.dataset.pinId = pin.id
+      if (pin.id === highlightedPinId) el.style.opacity = '0.45'
       const pos = pinViewportPos(pin)
       el.style.left = `${pos.x - 14}px`
       el.style.top = `${pos.y - 14}px`
@@ -684,67 +691,90 @@
   function renderPinsList() {
     const list = document.getElementById('rh-pins-list')
     if (!list) return
-    const open = pins.filter(p => p.status === 'open').length
-    document.getElementById('rh-btn-threads').textContent = `☰ Threads${pins.length > 0 ? ` (${open})` : ''}`
+    const openPins = pins.filter(p => p.status === 'open')
+    const resolvedPins = pins.filter(p => p.status === 'resolved')
+    document.getElementById('rh-btn-threads').textContent = `☰ Threads${openPins.length > 0 ? ` (${openPins.length})` : ''}`
 
-    if (pins.length === 0) {
-      list.innerHTML = '<div id="rh-empty">No comments yet.<br>Activate comment mode and click anywhere on the screen.</div>'
-      return
-    }
+    const tabsHTML = `
+      <div id="rh-tabs" style="display:flex;gap:4px;padding:0 12px 8px;flex-shrink:0">
+        <button class="rh-tab ${threadsTab === 'open' ? 'active' : ''}" data-tab="open">
+          Open${openPins.length ? ` (${openPins.length})` : ''}
+        </button>
+        <button class="rh-tab ${threadsTab === 'resolved' ? 'active' : ''}" data-tab="resolved">
+          Resolved${resolvedPins.length ? ` (${resolvedPins.length})` : ''}
+        </button>
+      </div>
+    `
 
-    list.innerHTML = pins.map((pin, i) => {
-      const pinReplies = replies[pin.id] || []
+    const tabPins = threadsTab === 'open' ? openPins : resolvedPins
 
-      const repliesHTML = pinReplies.length > 0 ? `
-        <div class="rh-replies">
-          ${pinReplies.map(r => `
-            <div class="rh-reply">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
-                <p class="rh-reply-author" style="margin:0">${r.author_name}</p>
-                <div style="display:flex;gap:4px;align-items:center">
-                  <button class="rh-reply-to-reply-btn" data-reply-id="${r.id}" data-reply-author="${r.author_name}" data-pin="${pin.id}" style="font-size:10px;padding:2px 6px;border-radius:5px;border:1px solid rgba(99,102,241,.25);background:rgba(99,102,241,.07);color:#a5b4fc;cursor:pointer;font-family:inherit">↩</button>
-                  <button class="rh-trash" data-reply-id="${r.id}" data-pin-id="${pin.id}" title="Delete reply">${trashIcon(11)}</button>
+    const cardsHTML = tabPins.length === 0
+      ? `<div id="rh-empty">${threadsTab === 'open' ? 'No open comments.<br>Activate comment mode and click anywhere.' : 'No resolved comments yet.'}</div>`
+      : tabPins.map((pin) => {
+          const i = pins.indexOf(pin)
+          const pinReplies = replies[pin.id] || []
+
+          const repliesHTML = pinReplies.length > 0 ? `
+            <div class="rh-replies">
+              ${pinReplies.map(r => `
+                <div class="rh-reply">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+                    <p class="rh-reply-author" style="margin:0">${r.author_name}</p>
+                    <div style="display:flex;gap:4px;align-items:center">
+                      <button class="rh-reply-to-reply-btn" data-reply-id="${r.id}" data-reply-author="${r.author_name}" data-pin="${pin.id}" style="font-size:10px;padding:2px 6px;border-radius:5px;border:1px solid rgba(99,102,241,.25);background:rgba(99,102,241,.07);color:#a5b4fc;cursor:pointer;font-family:inherit">↩</button>
+                      <button class="rh-trash" data-reply-id="${r.id}" data-pin-id="${pin.id}" title="Delete reply">${trashIcon(11)}</button>
+                    </div>
+                  </div>
+                  <p class="rh-reply-body">${r.body}</p>
                 </div>
-              </div>
-              <p class="rh-reply-body">${r.body}</p>
+              `).join('')}
             </div>
-          `).join('')}
-        </div>
-      ` : ''
+          ` : ''
 
-      const isReplyingToReply = replyingTo === pin.id && replyingToReply
-      const replyFormHTML = replyingTo === pin.id ? `
-        <div class="rh-reply-form">
-          ${isReplyingToReply ? `<p style="color:#a5b4fc;font-size:11px;margin:0 0 6px">↩ replying to @${replyingToReply.authorName}</p>` : ''}
-          <textarea rows="2" placeholder="Your reply…" id="rh-reply-body-${pin.id}"></textarea>
-          <div class="rh-reply-actions">
-            <button class="rh-reply-cancel" data-pin="${pin.id}">Cancel</button>
-            <button class="rh-reply-send" data-pin="${pin.id}">Send</button>
-          </div>
-        </div>
-      ` : ''
+          const isReplyingToReply = replyingTo === pin.id && replyingToReply
+          const replyFormHTML = replyingTo === pin.id ? `
+            <div class="rh-reply-form">
+              ${isReplyingToReply ? `<p style="color:#a5b4fc;font-size:11px;margin:0 0 6px">↩ replying to @${replyingToReply.authorName}</p>` : ''}
+              <textarea rows="2" placeholder="Your reply…" id="rh-reply-body-${pin.id}"></textarea>
+              <div class="rh-reply-actions">
+                <button class="rh-reply-cancel" data-pin="${pin.id}">Cancel</button>
+                <button class="rh-reply-send" data-pin="${pin.id}">Send</button>
+              </div>
+            </div>
+          ` : ''
 
-      return `
-        <div class="rh-card" data-pin-id="${pin.id}">
-          <div class="rh-card-header rh-goto-pin" data-pin-id="${pin.id}" style="cursor:pointer" title="Jump to pin">
-            <div class="rh-badge ${pin.status === 'resolved' ? 'resolved' : ''}">${i + 1}</div>
-            <p class="rh-author">${pin.author_name || 'Anonymous'}</p>
-            ${pin.status === 'resolved' ? '<p class="rh-author" style="margin-left:auto;color:#22c55e">✓ resolved</p>' : '<span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,.25)">↗ view</span>'}
-          </div>
-          <p class="rh-body">${pin.body}</p>
-          <div class="rh-card-actions">
-            <button class="rh-reply-btn" data-pin="${pin.id}">↩ Reply</button>
-            <button class="rh-status-btn" data-id="${pin.id}" data-status="${pin.status}">
-              ${pin.status === 'open' ? 'Resolve' : 'Reopen'}
-            </button>
-            <button class="rh-trash" data-pin-id="${pin.id}" title="Delete comment">${trashIcon(13)}</button>
-          </div>
-          ${repliesHTML}
-          ${replyFormHTML}
-        </div>
-      `
-    }).join('')
+          const isResolved = pin.status === 'resolved'
+          return `
+            <div class="rh-card${isResolved ? ' rh-card-resolved' : ''}" data-pin-id="${pin.id}">
+              <div class="rh-card-header rh-goto-pin" data-pin-id="${pin.id}" style="cursor:pointer" title="Jump to pin">
+                <div class="rh-badge ${isResolved ? 'resolved' : ''}">${i + 1}</div>
+                <p class="rh-author">${pin.author_name || 'Anonymous'}</p>
+                ${isResolved ? '<p class="rh-author" style="margin-left:auto;color:#22c55e">✓ resolved</p>' : '<span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,.25)">↗ view</span>'}
+              </div>
+              <p class="rh-body">${pin.body}</p>
+              <div class="rh-card-actions">
+                ${!isResolved ? `<button class="rh-reply-btn" data-pin="${pin.id}">↩ Reply</button>` : ''}
+                <button class="rh-status-btn" data-id="${pin.id}" data-status="${pin.status}">
+                  ${isResolved ? 'Reopen' : 'Resolve'}
+                </button>
+                <button class="rh-trash" data-pin-id="${pin.id}" title="Delete comment">${trashIcon(13)}</button>
+              </div>
+              ${repliesHTML}
+              ${replyFormHTML}
+            </div>
+          `
+        }).join('')
 
+    list.innerHTML = tabsHTML + `<div id="rh-cards-list" style="display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex:1;padding:0 12px 12px">${cardsHTML}</div>`
+
+    list.querySelectorAll('.rh-tab').forEach(btn => {
+      btn.onclick = () => {
+        threadsTab = btn.dataset.tab
+        highlightedPinId = null
+        renderPins()
+        renderPinsList()
+      }
+    })
     list.querySelectorAll('.rh-status-btn').forEach(btn => {
       btn.onclick = () => toggleStatus(btn.dataset.id, btn.dataset.status)
     })
@@ -774,10 +804,16 @@
     list.querySelectorAll('.rh-goto-pin').forEach(header => {
       header.onclick = () => {
         const pin = pins.find(p => p.id === header.dataset.pinId)
-        if (pin) scrollToPin(pin)
+        if (!pin) return
+        if (pin.status === 'resolved') {
+          // show pin temporarily with opacity
+          highlightedPinId = pin.id
+          renderPins()
+          setTimeout(() => { highlightedPinId = null; renderPins() }, 3000)
+        }
+        scrollToPin(pin)
       }
     })
-    // lixeiras — distingue pin vs reply pelo dataset
     list.querySelectorAll('.rh-trash').forEach(btn => {
       if (btn.dataset.replyId) {
         btn.onclick = () => deleteReply(btn.dataset.replyId, btn.dataset.pinId)
@@ -880,6 +916,7 @@
     })
     const pin = pins.find(p => p.id === pinId)
     if (pin) pin.status = next
+    highlightedPinId = null
     renderPins()
     renderPinsList()
   }
