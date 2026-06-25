@@ -329,22 +329,36 @@
     if (pp) pp.style.display = 'none'
   }
 
+  let editingPinId = null
+
   function renderPinPopover(pin, pinIndex) {
     const pp = document.getElementById('rh-pin-popover')
     if (!pp) return
     const pinReplies = replies[pin.id] || []
     const isReplying = replyingTo === pin.id
+    const isEditing = editingPinId === pin.id
 
     const repliesHTML = pinReplies.length > 0 ? `
       <div class="rh-pp-replies">
         ${pinReplies.map(r => `
           <div class="rh-pp-reply">
-            <p class="rh-pp-reply-author">${r.author_name}</p>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+              <p class="rh-pp-reply-author" style="margin:0">${r.author_name}</p>
+              <button class="rh-trash" data-reply-id="${r.id}" title="Delete reply" style="flex-shrink:0">${trashIcon(11)}</button>
+            </div>
             <p class="rh-pp-reply-body">${r.body}</p>
           </div>
         `).join('')}
       </div>
     ` : ''
+
+    const bodySection = isEditing ? `
+      <textarea id="rh-pp-edit-body" rows="3" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(99,102,241,.4);border-radius:7px;color:#fff;font-size:13px;padding:8px 10px;font-family:inherit;box-sizing:border-box;outline:none;resize:none;margin-bottom:6px">${pin.body}</textarea>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <button class="rh-pp-cancel" id="rh-pp-edit-cancel">Cancel</button>
+        <button class="rh-pp-send" id="rh-pp-edit-save">Save</button>
+      </div>
+    ` : `<p class="rh-pp-body">${pin.body}</p>`
 
     const replyFormHTML = isReplying ? `
       <div class="rh-pp-reply-form">
@@ -360,9 +374,12 @@
     pp.innerHTML = `
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
         <p class="rh-pp-author" style="margin:0">${pin.author_name || 'Anonymous'} · #${pinIndex + 1}</p>
-        <button class="rh-trash" id="rh-pp-delete" title="Delete comment" style="flex-shrink:0">${trashIcon(12)}</button>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="rh-pp-status" id="rh-pp-edit-btn" title="Edit comment" style="padding:3px 7px;font-size:11px">✏️</button>
+          <button class="rh-trash" id="rh-pp-delete" title="Delete comment">${trashIcon(12)}</button>
+        </div>
       </div>
-      <p class="rh-pp-body">${pin.body}</p>
+      ${bodySection}
       ${repliesHTML}
       ${replyFormHTML}
       <div class="rh-pp-footer">
@@ -372,6 +389,12 @@
         </button>
       </div>
     `
+
+    document.getElementById('rh-pp-edit-btn').onclick = () => {
+      editingPinId = editingPinId === pin.id ? null : pin.id
+      renderPinPopover(pin, pinIndex)
+      if (editingPinId) setTimeout(() => document.getElementById('rh-pp-edit-body')?.focus(), 50)
+    }
 
     document.getElementById('rh-pp-reply-toggle').onclick = () => {
       replyingTo = replyingTo === pin.id ? null : pin.id
@@ -386,6 +409,34 @@
       const updated = pins.find(p => p.id === pin.id)
       if (updated) renderPinPopover(updated, pinIndex)
     }
+
+    if (isEditing) {
+      document.getElementById('rh-pp-edit-cancel').onclick = () => {
+        editingPinId = null
+        renderPinPopover(pin, pinIndex)
+      }
+      document.getElementById('rh-pp-edit-save').onclick = async () => {
+        const newBody = document.getElementById('rh-pp-edit-body')?.value.trim()
+        if (!newBody) return
+        await sbFetch(`pins?id=eq.${pin.id}`, {
+          method: 'PATCH',
+          prefer: 'return=minimal',
+          body: JSON.stringify({ body: newBody }),
+        })
+        pin.body = newBody
+        editingPinId = null
+        renderPinPopover(pin, pinIndex)
+        renderPinsList()
+      }
+    }
+
+    // Delete reply buttons inside popover
+    pp.querySelectorAll('.rh-trash[data-reply-id]').forEach(btn => {
+      btn.onclick = async () => {
+        await deleteReply(btn.dataset.replyId, pin.id)
+        renderPinPopover(pin, pinIndex)
+      }
+    })
 
     if (isReplying) {
       document.getElementById('rh-pp-cancel-reply').onclick = () => {
