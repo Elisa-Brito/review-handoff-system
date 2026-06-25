@@ -658,8 +658,17 @@
           `
           const rect = el.getBoundingClientRect()
           hover.style.display = 'block'
-          hover.style.left = `${rect.left}px`
-          hover.style.top = `${rect.top - hover.offsetHeight - 10}px`
+          const hh = hover.offsetHeight
+          const hw = hover.offsetWidth
+          // Horizontal: clamp so it doesn't overflow right edge
+          let left = rect.left
+          if (left + hw > window.innerWidth - 8) left = window.innerWidth - hw - 8
+          if (left < 8) left = 8
+          // Vertical: prefer above, fallback below
+          const spaceAbove = rect.top
+          const top = spaceAbove > hh + 12 ? rect.top - hh - 10 : rect.bottom + 10
+          hover.style.left = `${left}px`
+          hover.style.top = `${top}px`
           requestAnimationFrame(() => hover.classList.add('visible'))
         }, 120)
       })
