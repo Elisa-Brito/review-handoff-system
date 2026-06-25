@@ -348,6 +348,7 @@
 
     const replyFormHTML = isReplying ? `
       <div class="rh-pp-reply-form">
+        ${!getSavedName() ? `<input type="text" placeholder="Your name…" id="rh-pp-reply-name" autocomplete="off" style="width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:7px;color:#fff;font-size:12px;padding:7px 9px;font-family:inherit;box-sizing:border-box;outline:none;margin-bottom:6px" />` : ''}
         <textarea rows="2" placeholder="Your reply…" id="rh-pp-reply-body"></textarea>
         <div class="rh-pp-reply-actions">
           <button class="rh-pp-cancel" id="rh-pp-cancel-reply">Cancel</button>
@@ -397,8 +398,10 @@
         if (!body) return
         const sendBtn = document.getElementById('rh-pp-send-reply')
         sendBtn.disabled = true
-        sendBtn.textContent = 'Enviando…'
-        const authorName = getSavedName() || 'Anonymous'
+        sendBtn.textContent = 'Sending…'
+        const nameEl = document.getElementById('rh-pp-reply-name')
+        if (nameEl?.value.trim()) saveName(nameEl.value.trim())
+        const authorName = getSavedName() || nameEl?.value.trim() || 'Anonymous'
         const data = await sbFetch('replies?select=*', {
           method: 'POST',
           prefer: 'return=representation',
@@ -892,9 +895,11 @@
           ` : ''
 
           const isReplyingToReply = replyingTo === pin.id && replyingToReply
+          const savedName = getSavedName()
           const replyFormHTML = replyingTo === pin.id ? `
             <div class="rh-reply-form">
               ${isReplyingToReply ? `<p style="color:#a5b4fc;font-size:11px;margin:0 0 6px">↩ replying to @${replyingToReply.authorName}</p>` : ''}
+              ${!savedName ? `<input type="text" placeholder="Your name…" id="rh-reply-name-${pin.id}" autocomplete="off" />` : ''}
               <textarea rows="2" placeholder="Your reply…" id="rh-reply-body-${pin.id}"></textarea>
               <div class="rh-reply-actions">
                 <button class="rh-reply-cancel" data-pin="${pin.id}">Cancel</button>
@@ -1026,7 +1031,9 @@
     if (!rawBody) return
     const mention = replyingToReply ? `@${replyingToReply.authorName} ` : ''
     const body = mention + rawBody
-    const authorName = getSavedName() || 'Anonymous'
+    const nameInput = document.getElementById(`rh-reply-name-${pinId}`)
+    if (nameInput?.value.trim()) saveName(nameInput.value.trim())
+    const authorName = getSavedName() || nameInput?.value.trim() || 'Anonymous'
     const sendBtn = document.querySelector(`.rh-reply-send[data-pin="${pinId}"]`)
     if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…' }
     const data = await sbFetch('replies?select=*', {
