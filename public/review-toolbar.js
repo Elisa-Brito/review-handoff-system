@@ -636,6 +636,17 @@
         hoverTimer = setTimeout(() => {
           const hover = document.getElementById('rh-pin-hover')
           if (!hover) return
+          const pinReplies = replies[pin.id] || []
+          const repliesHTML = pinReplies.length > 0 ? `
+            <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;gap:6px">
+              ${pinReplies.map(r => `
+                <div>
+                  <span style="color:rgba(255,255,255,.4);font-size:10px;font-weight:600">${r.author_name}</span>
+                  <p style="color:rgba(255,255,255,.6);font-size:11px;line-height:1.4;margin:2px 0 0">${r.body}</p>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''
           hover.innerHTML = `
             <div class="rh-ph-header">
               <div class="rh-ph-avatar${isResolved ? ' resolved' : ''}">${initial}</div>
@@ -643,6 +654,7 @@
               ${ago ? `<span class="rh-ph-time">${ago}</span>` : ''}
             </div>
             <p class="rh-ph-body">${pin.body}</p>
+            ${repliesHTML}
           `
           const rect = el.getBoundingClientRect()
           hover.style.display = 'block'
