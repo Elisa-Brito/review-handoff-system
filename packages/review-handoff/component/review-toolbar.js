@@ -112,9 +112,19 @@
       #rh-pin-popover .rh-pp-send:disabled{opacity:.5;cursor:not-allowed}
 
       /* Pins */
-      .rh-pin{position:fixed;width:28px;height:28px;border-radius:50% 50% 50% 0;background:#6366f1;border:2px solid #fff;transform:rotate(-45deg);cursor:pointer;pointer-events:all;box-shadow:0 2px 8px rgba(0,0,0,.3);z-index:2147483641;display:flex;align-items:center;justify-content:center}
+      .rh-pin{position:fixed;width:32px;height:32px;border-radius:50%;background:#6366f1;border:2.5px solid #fff;cursor:pointer;pointer-events:all;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:2147483641;display:flex;align-items:center;justify-content:center;transition:transform .15s ease,box-shadow .15s ease}
+      .rh-pin:hover{transform:scale(1.15);box-shadow:0 4px 14px rgba(0,0,0,.4)}
       .rh-pin.resolved{background:#22c55e}
-      .rh-pin span{transform:rotate(45deg);color:#fff;font-size:11px;font-weight:700;font-family:-apple-system,sans-serif}
+      .rh-pin span{color:#fff;font-size:12px;font-weight:700;font-family:-apple-system,sans-serif;line-height:1;user-select:none}
+      /* Hover tooltip */
+      .rh-pin-tooltip{position:fixed;background:#1c1c1f;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:2147483642;pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .12s ease,transform .12s ease;max-width:220px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+      .rh-pin-tooltip.visible{opacity:1;transform:translateY(0)}
+      .rh-pin-tooltip-header{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+      .rh-pin-tooltip-avatar{width:20px;height:20px;border-radius:50%;background:#6366f1;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+      .rh-pin-tooltip-avatar.resolved{background:#22c55e}
+      .rh-pin-tooltip-name{color:#fff;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .rh-pin-tooltip-time{color:rgba(255,255,255,.35);font-size:10px;margin-left:auto;white-space:nowrap;flex-shrink:0}
+      .rh-pin-tooltip-body{color:rgba(255,255,255,.7);font-size:12px;line-height:1.5;margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 
       /* Painel lateral */
       #rh-panel{position:fixed;top:0;right:0;width:300px;height:100vh;background:#18181b;border-left:1px solid rgba(255,255,255,.08);z-index:2147483645;display:flex;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:-4px 0 24px rgba(0,0,0,.4);transform:translateX(100%);transition:transform .2s ease}
@@ -527,6 +537,7 @@
   let _currentPageKey = null
   let _pinContainer = null
   let _capturedPages = {} // { pageKey: html }
+  let _pageNavMap = {} // { routePath: navButtonText } — built lazily as user navigates
 
   function getPinContainer() {
     if (_pinContainer) return _pinContainer
@@ -585,18 +596,62 @@
     }
   }
 
+  function timeAgo(dateStr) {
+    if (!dateStr) return ''
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const m = Math.floor(diff / 60000)
+    if (m < 1) return 'just now'
+    if (m < 60) return `${m}m ago`
+    const h = Math.floor(m / 60)
+    if (h < 24) return `${h}h ago`
+    const d = Math.floor(h / 24)
+    if (d < 30) return `${d}d ago`
+    const mo = Math.floor(d / 30)
+    return `${mo}mo ago`
+  }
+
   function renderPins() {
     document.querySelectorAll('.rh-pin').forEach(el => el.remove())
     visiblePins().forEach((pin) => {
       const globalIndex = pins.indexOf(pin)
       const el = document.createElement('div')
-      el.className = 'rh-pin' + (pin.status === 'resolved' ? ' resolved' : '')
+      const isResolved = pin.status === 'resolved'
+      el.className = 'rh-pin' + (isResolved ? ' resolved' : '')
       el.dataset.pinId = pin.id
       if (pin.id === highlightedPinId) el.style.opacity = '0.45'
       const pos = pinViewportPos(pin)
-      el.style.left = `${pos.x - 14}px`
-      el.style.top = `${pos.y - 14}px`
-      el.innerHTML = `<span>${globalIndex + 1}</span>`
+      el.style.left = `${pos.x - 16}px`
+      el.style.top = `${pos.y - 16}px`
+      const initial = (pin.author_name || '?')[0].toUpperCase()
+      const ago = timeAgo(pin.created_at)
+      el.innerHTML = `
+        <span>${initial}</span>
+        <div class="rh-pin-tooltip">
+          <div class="rh-pin-tooltip-header">
+            <div class="rh-pin-tooltip-avatar${isResolved ? ' resolved' : ''}">${initial}</div>
+            <span class="rh-pin-tooltip-name">${pin.author_name || 'Anonymous'}</span>
+            ${ago ? `<span class="rh-pin-tooltip-time">${ago}</span>` : ''}
+          </div>
+          <p class="rh-pin-tooltip-body">${pin.body}</p>
+        </div>
+      `
+      // Position tooltip on hover
+      el.addEventListener('mouseenter', () => {
+        const tooltip = el.querySelector('.rh-pin-tooltip')
+        if (!tooltip) return
+        const rect = el.getBoundingClientRect()
+        tooltip.style.left = `${rect.left + rect.width / 2 - 12}px`
+        tooltip.style.top = `${rect.top - 8}px`
+        tooltip.style.transform = 'translateY(-100%) translateY(-4px)'
+        requestAnimationFrame(() => {
+          tooltip.style.transform = 'translateY(-100%)'
+          tooltip.classList.add('visible')
+        })
+      })
+      el.addEventListener('mouseleave', () => {
+        const tooltip = el.querySelector('.rh-pin-tooltip')
+        if (tooltip) tooltip.classList.remove('visible')
+      })
       el.onclick = (e) => {
         e.stopPropagation()
         if (pinPopoverPinId === pin.id) { closePinPopover(); return }
@@ -632,22 +687,20 @@
       }, 400)
     }
 
-    // Track nav clicks directly — works even when active class doesn't contain "active"
+    // Track nav clicks — record h1→navText mapping so we can navigate to any page later
     document.addEventListener('click', (e) => {
       if (isToolbarEl(e.target)) return
       const navEl = e.target.closest('nav a,nav button,aside a,aside button,[role="menuitem"],[role="tab"]')
       if (!navEl || isToolbarEl(navEl)) return
-      const text = getElText(navEl).slice(0, 60)
-      if (!text) return
+      const navText = getElText(navEl).slice(0, 60)
+      // After React renders the new page, record the h1→nav mapping
       setTimeout(() => {
-        if (text !== _currentPageKey) {
-          _currentPageKey = text
-          closePinPopover()
-          renderPins()
-          setTimeout(captureCurrentPage, 300)
-        }
-      }, 80) // small delay so React renders before we re-render pins
-    }, true) // capture phase — fires before React handlers
+        const h1 = currentH1Text()
+        if (h1) _pageNavMap[h1] = navText || h1
+        if (navText) _pageNavMap[navText] = navText
+        // Let onPageChange (MutationObserver) update _currentPageKey naturally
+      }, 450)
+    }, true)
 
     // URL-based routing
     const orig = history.pushState.bind(history)
@@ -698,48 +751,74 @@
   }
 
   function navigateToPage(pageKey) {
-    const key = pageKey.toLowerCase()
     const navCandidates = [...document.querySelectorAll(
       'nav a,nav button,aside a,aside button,[role="navigation"] a,[role="navigation"] button,[role="menuitem"],[role="tab"]'
     )].filter(el => !isToolbarEl(el))
 
-    // exact match
-    const exact = navCandidates.find(el => getElText(el).toLowerCase() === key)
+    // Resolve via cached h1→navText map (works even when sidebar is collapsed)
+    const mappedNavText = _pageNavMap[pageKey]
+    if (mappedNavText) {
+      const mapped = navCandidates.find(el => getElText(el).toLowerCase() === mappedNavText.toLowerCase())
+      if (mapped) { mapped.click(); return true }
+    }
+
+    // Direct text match (works for new pins that stored nav button text as route_path)
+    const key = pageKey.toLowerCase()
+    const exact = navCandidates.find(el => {
+      const t = getElText(el).toLowerCase()
+      return t && t === key
+    })
     if (exact) { exact.click(); return true }
 
-    // partial match
     const partial = navCandidates.find(el => {
       const t = getElText(el).toLowerCase()
-      return t.includes(key) || key.includes(t)
+      return t && (t.includes(key) || key.includes(t))
     })
     if (partial) { partial.click(); return true }
 
     return false
   }
 
+  function onPinPage(pinPage) {
+    if (!pinPage || pinPage === '/') return true
+    if (pinPage === _currentPageKey) return true
+    const h1 = currentH1Text()
+    if (h1 && (h1 === pinPage || _pageNavMap[pinPage] === _pageNavMap[h1])) return true
+    return false
+  }
+
   function scrollToPin(pin) {
     const pinPage = pin.route_path
-    const onCorrectPage = !pinPage || pinPage === '/' || pinPage === _currentPageKey
 
-    if (onCorrectPage) {
+    if (onPinPage(pinPage)) {
       doScroll(pin)
       return
     }
 
-    // Need to navigate first, then scroll once the page renders
     const navigated = navigateToPage(pinPage)
     if (!navigated) {
-      // Can't navigate — just scroll anyway (pin may not be visible)
-      doScroll(pin)
+      // Fallback: try every nav button in sequence until h1 matches
+      const navBtns = [...document.querySelectorAll('nav button,aside button')].filter(el => !isToolbarEl(el) && getElText(el))
+      let idx = 0
+      const tryNext = () => {
+        if (idx >= navBtns.length) { doScroll(pin); return }
+        navBtns[idx++].click()
+        setTimeout(() => {
+          if (onPinPage(pinPage)) { setTimeout(() => { renderPins(); doScroll(pin) }, 100); return }
+          tryNext()
+        }, 350)
+      }
+      tryNext()
       return
     }
-    // Wait for the SPA to render the new page, then scroll
+
+    // Wait for the SPA to render, then scroll
     let attempts = 0
     const poll = setInterval(() => {
       attempts++
-      if (_currentPageKey === pinPage || attempts > 20) {
+      if (onPinPage(pinPage) || attempts > 20) {
         clearInterval(poll)
-        doScroll(pin)
+        if (onPinPage(pinPage)) setTimeout(() => { renderPins(); doScroll(pin) }, 100)
       }
     }, 150)
   }

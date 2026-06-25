@@ -112,9 +112,19 @@
       #rh-pin-popover .rh-pp-send:disabled{opacity:.5;cursor:not-allowed}
 
       /* Pins */
-      .rh-pin{position:fixed;width:28px;height:28px;border-radius:50% 50% 50% 0;background:#6366f1;border:2px solid #fff;transform:rotate(-45deg);cursor:pointer;pointer-events:all;box-shadow:0 2px 8px rgba(0,0,0,.3);z-index:2147483641;display:flex;align-items:center;justify-content:center}
+      .rh-pin{position:fixed;width:32px;height:32px;border-radius:50%;background:#6366f1;border:2.5px solid #fff;cursor:pointer;pointer-events:all;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:2147483641;display:flex;align-items:center;justify-content:center;transition:transform .15s ease,box-shadow .15s ease}
+      .rh-pin:hover{transform:scale(1.15);box-shadow:0 4px 14px rgba(0,0,0,.4)}
       .rh-pin.resolved{background:#22c55e}
-      .rh-pin span{transform:rotate(45deg);color:#fff;font-size:11px;font-weight:700;font-family:-apple-system,sans-serif}
+      .rh-pin span{color:#fff;font-size:12px;font-weight:700;font-family:-apple-system,sans-serif;line-height:1;user-select:none}
+      /* Hover tooltip */
+      .rh-pin-tooltip{position:fixed;background:#1c1c1f;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:2147483642;pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .12s ease,transform .12s ease;max-width:220px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+      .rh-pin-tooltip.visible{opacity:1;transform:translateY(0)}
+      .rh-pin-tooltip-header{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+      .rh-pin-tooltip-avatar{width:20px;height:20px;border-radius:50%;background:#6366f1;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+      .rh-pin-tooltip-avatar.resolved{background:#22c55e}
+      .rh-pin-tooltip-name{color:#fff;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .rh-pin-tooltip-time{color:rgba(255,255,255,.35);font-size:10px;margin-left:auto;white-space:nowrap;flex-shrink:0}
+      .rh-pin-tooltip-body{color:rgba(255,255,255,.7);font-size:12px;line-height:1.5;margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 
       /* Painel lateral */
       #rh-panel{position:fixed;top:0;right:0;width:300px;height:100vh;background:#18181b;border-left:1px solid rgba(255,255,255,.08);z-index:2147483645;display:flex;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:-4px 0 24px rgba(0,0,0,.4);transform:translateX(100%);transition:transform .2s ease}
@@ -586,18 +596,62 @@
     }
   }
 
+  function timeAgo(dateStr) {
+    if (!dateStr) return ''
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const m = Math.floor(diff / 60000)
+    if (m < 1) return 'just now'
+    if (m < 60) return `${m}m ago`
+    const h = Math.floor(m / 60)
+    if (h < 24) return `${h}h ago`
+    const d = Math.floor(h / 24)
+    if (d < 30) return `${d}d ago`
+    const mo = Math.floor(d / 30)
+    return `${mo}mo ago`
+  }
+
   function renderPins() {
     document.querySelectorAll('.rh-pin').forEach(el => el.remove())
     visiblePins().forEach((pin) => {
       const globalIndex = pins.indexOf(pin)
       const el = document.createElement('div')
-      el.className = 'rh-pin' + (pin.status === 'resolved' ? ' resolved' : '')
+      const isResolved = pin.status === 'resolved'
+      el.className = 'rh-pin' + (isResolved ? ' resolved' : '')
       el.dataset.pinId = pin.id
       if (pin.id === highlightedPinId) el.style.opacity = '0.45'
       const pos = pinViewportPos(pin)
-      el.style.left = `${pos.x - 14}px`
-      el.style.top = `${pos.y - 14}px`
-      el.innerHTML = `<span>${globalIndex + 1}</span>`
+      el.style.left = `${pos.x - 16}px`
+      el.style.top = `${pos.y - 16}px`
+      const initial = (pin.author_name || '?')[0].toUpperCase()
+      const ago = timeAgo(pin.created_at)
+      el.innerHTML = `
+        <span>${initial}</span>
+        <div class="rh-pin-tooltip">
+          <div class="rh-pin-tooltip-header">
+            <div class="rh-pin-tooltip-avatar${isResolved ? ' resolved' : ''}">${initial}</div>
+            <span class="rh-pin-tooltip-name">${pin.author_name || 'Anonymous'}</span>
+            ${ago ? `<span class="rh-pin-tooltip-time">${ago}</span>` : ''}
+          </div>
+          <p class="rh-pin-tooltip-body">${pin.body}</p>
+        </div>
+      `
+      // Position tooltip on hover
+      el.addEventListener('mouseenter', () => {
+        const tooltip = el.querySelector('.rh-pin-tooltip')
+        if (!tooltip) return
+        const rect = el.getBoundingClientRect()
+        tooltip.style.left = `${rect.left + rect.width / 2 - 12}px`
+        tooltip.style.top = `${rect.top - 8}px`
+        tooltip.style.transform = 'translateY(-100%) translateY(-4px)'
+        requestAnimationFrame(() => {
+          tooltip.style.transform = 'translateY(-100%)'
+          tooltip.classList.add('visible')
+        })
+      })
+      el.addEventListener('mouseleave', () => {
+        const tooltip = el.querySelector('.rh-pin-tooltip')
+        if (tooltip) tooltip.classList.remove('visible')
+      })
       el.onclick = (e) => {
         e.stopPropagation()
         if (pinPopoverPinId === pin.id) { closePinPopover(); return }
