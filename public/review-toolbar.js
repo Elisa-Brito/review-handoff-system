@@ -919,16 +919,18 @@
 
     const navigated = navigateToPage(pinPage)
     if (!navigated) {
-      // Fallback: try every nav button in sequence until h1 matches
-      const navBtns = [...document.querySelectorAll('nav button,aside button')].filter(el => !isToolbarEl(el) && getElText(el))
+      // Fallback: try every nav button in sequence until page matches
+      // Don't filter by text — sidebar may be collapsed (no visible text)
+      const navBtns = [...document.querySelectorAll('nav button,aside button,[role="menuitem"],[role="tab"]')]
+        .filter(el => !isToolbarEl(el))
       let idx = 0
       const tryNext = () => {
         if (idx >= navBtns.length) { doScroll(pin); return }
         navBtns[idx++].click()
         setTimeout(() => {
-          if (onPinPage(pinPage)) { setTimeout(() => { renderPins(); doScroll(pin) }, 100); return }
+          if (onPinPage(pinPage)) { setTimeout(() => { renderPins(); doScroll(pin) }, 150); return }
           tryNext()
-        }, 350)
+        }, 450)
       }
       tryNext()
       return
@@ -940,7 +942,7 @@
       attempts++
       if (onPinPage(pinPage) || attempts > 20) {
         clearInterval(poll)
-        if (onPinPage(pinPage)) setTimeout(() => { renderPins(); doScroll(pin) }, 100)
+        if (onPinPage(pinPage)) setTimeout(() => { renderPins(); doScroll(pin) }, 150)
       }
     }, 150)
   }
