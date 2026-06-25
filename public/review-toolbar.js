@@ -1239,15 +1239,31 @@
     handoffLoading = true
     renderHandoff()
     try {
-      // Capture current page if not already captured
-      captureCurrentPage()
+      const manualPaths = handoffManualPages.map(p => p.path?.trim()).filter(Boolean)
 
-      // Use captured snapshots from navigation
-      const pages = Object.entries(_capturedPages).map(([label, html]) => ({
-        url: location.origin + (location.pathname !== '/' ? location.pathname : '') + '#' + label,
-        label,
-        html,
-      }))
+      let pages = []
+      if (manualPaths.length > 0) {
+        // Navigate to each specified page, capture HTML, send only those
+        for (const path of manualPaths) {
+          navigateToPage(path)
+          await new Promise(r => setTimeout(r, 600))
+          const label = _currentPageKey || path
+          pages.push({
+            url: location.origin + path,
+            label,
+            html: document.documentElement.outerHTML,
+          })
+        }
+      } else {
+        // No manual routes — just send the current page
+        captureCurrentPage()
+        const label = _currentPageKey || 'Page'
+        pages = [{
+          url: location.href,
+          label,
+          html: _capturedPages[_currentPageKey] || document.documentElement.outerHTML,
+        }]
+      }
 
       const res = await fetch(`${API_BASE}/api/handoff`, {
         method: 'POST',
