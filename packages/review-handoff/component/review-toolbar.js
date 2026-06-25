@@ -19,13 +19,18 @@
     } catch { return 'anon' }
   }
 
-  // SVG lixeira — mesmo ícone em todos os lugares, só o tamanho muda
   const trashIcon = (size) =>
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <polyline points="3 6 5 6 21 6"/>
       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
       <path d="M10 11v6"/><path d="M14 11v6"/>
       <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+    </svg>`
+
+  const editIcon = (size) =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
     </svg>`
 
   let reviewId = null
@@ -161,9 +166,10 @@
       .rh-reply-send{flex:1;padding:6px;border-radius:7px;border:none;background:#6366f1;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
       .rh-reply-send:disabled{opacity:.5;cursor:not-allowed}
 
-      /* Lixeira — estilo único para os dois contextos */
       .rh-trash{display:inline-flex;align-items:center;justify-content:center;padding:4px;border-radius:6px;border:1px solid rgba(239,68,68,.25);background:rgba(239,68,68,.07);color:#f87171;cursor:pointer;line-height:0}
       .rh-trash:hover{background:rgba(239,68,68,.18);color:#fca5a5;border-color:rgba(239,68,68,.4)}
+      .rh-edit{display:inline-flex;align-items:center;justify-content:center;padding:4px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:rgba(255,255,255,.4);cursor:pointer;line-height:0}
+      .rh-edit:hover{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.25)}
 
       .rh-form-actions{display:flex;gap:8px;margin-top:8px}
       .rh-btn-cancel{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:transparent;color:rgba(255,255,255,.55);font-size:13px;cursor:pointer;font-family:inherit}
@@ -330,6 +336,7 @@
   }
 
   let editingPinId = null
+  let editingReplyId = null
 
   function renderPinPopover(pin, pinIndex) {
     const pp = document.getElementById('rh-pin-popover')
@@ -340,15 +347,26 @@
 
     const repliesHTML = pinReplies.length > 0 ? `
       <div class="rh-pp-replies">
-        ${pinReplies.map(r => `
+        ${pinReplies.map(r => {
+          const isEditingThis = editingReplyId === r.id
+          return `
           <div class="rh-pp-reply">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
               <p class="rh-pp-reply-author" style="margin:0">${r.author_name}</p>
-              <button class="rh-trash" data-reply-id="${r.id}" title="Delete reply" style="flex-shrink:0">${trashIcon(11)}</button>
+              <div style="display:flex;gap:3px">
+                <button class="rh-edit rh-edit-reply" data-reply-id="${r.id}" title="Edit reply">${editIcon(11)}</button>
+                <button class="rh-trash rh-del-reply" data-reply-id="${r.id}" title="Delete reply">${trashIcon(11)}</button>
+              </div>
             </div>
-            <p class="rh-pp-reply-body">${r.body}</p>
-          </div>
-        `).join('')}
+            ${isEditingThis ? `
+              <textarea id="rh-pp-edit-reply-${r.id}" rows="2" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(99,102,241,.4);border-radius:6px;color:#fff;font-size:12px;padding:6px 8px;font-family:inherit;box-sizing:border-box;outline:none;resize:none;margin-bottom:4px">${r.body}</textarea>
+              <div style="display:flex;gap:5px">
+                <button class="rh-pp-cancel rh-edit-reply-cancel" data-reply-id="${r.id}">Cancel</button>
+                <button class="rh-pp-send rh-edit-reply-save" data-reply-id="${r.id}">Save</button>
+              </div>
+            ` : `<p class="rh-pp-reply-body">${r.body}</p>`}
+          </div>`
+        }).join('')}
       </div>
     ` : ''
 
@@ -375,7 +393,7 @@
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
         <p class="rh-pp-author" style="margin:0">${pin.author_name || 'Anonymous'} · #${pinIndex + 1}</p>
         <div style="display:flex;gap:4px;flex-shrink:0">
-          <button class="rh-pp-status" id="rh-pp-edit-btn" title="Edit comment" style="padding:3px 7px;font-size:11px">✏️</button>
+          <button class="rh-edit" id="rh-pp-edit-btn" title="Edit comment">${editIcon(12)}</button>
           <button class="rh-trash" id="rh-pp-delete" title="Delete comment">${trashIcon(12)}</button>
         </div>
       </div>
@@ -430,8 +448,33 @@
       }
     }
 
-    // Delete reply buttons inside popover
-    pp.querySelectorAll('.rh-trash[data-reply-id]').forEach(btn => {
+    // Edit / delete reply buttons inside popover
+    pp.querySelectorAll('.rh-edit-reply').forEach(btn => {
+      btn.onclick = () => {
+        editingReplyId = editingReplyId === btn.dataset.replyId ? null : btn.dataset.replyId
+        renderPinPopover(pin, pinIndex)
+        if (editingReplyId) setTimeout(() => document.getElementById(`rh-pp-edit-reply-${editingReplyId}`)?.focus(), 50)
+      }
+    })
+    pp.querySelectorAll('.rh-edit-reply-cancel').forEach(btn => {
+      btn.onclick = () => { editingReplyId = null; renderPinPopover(pin, pinIndex) }
+    })
+    pp.querySelectorAll('.rh-edit-reply-save').forEach(btn => {
+      btn.onclick = async () => {
+        const newBody = document.getElementById(`rh-pp-edit-reply-${btn.dataset.replyId}`)?.value.trim()
+        if (!newBody) return
+        await sbFetch(`replies?id=eq.${btn.dataset.replyId}`, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify({ body: newBody }),
+        })
+        const r = (replies[pin.id] || []).find(r => r.id === btn.dataset.replyId)
+        if (r) r.body = newBody
+        editingReplyId = null
+        renderPinPopover(pin, pinIndex)
+        renderPinsList()
+      }
+    })
+    pp.querySelectorAll('.rh-del-reply').forEach(btn => {
       btn.onclick = async () => {
         await deleteReply(btn.dataset.replyId, pin.id)
         renderPinPopover(pin, pinIndex)
@@ -930,18 +973,27 @@
 
           const repliesHTML = pinReplies.length > 0 ? `
             <div class="rh-replies">
-              ${pinReplies.map(r => `
+              ${pinReplies.map(r => {
+                const isEditingThis = editingReplyId === r.id
+                return `
                 <div class="rh-reply">
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
                     <p class="rh-reply-author" style="margin:0">${r.author_name}</p>
                     <div style="display:flex;gap:4px;align-items:center">
                       <button class="rh-reply-to-reply-btn" data-reply-id="${r.id}" data-reply-author="${r.author_name}" data-pin="${pin.id}" style="font-size:10px;padding:2px 6px;border-radius:5px;border:1px solid rgba(99,102,241,.25);background:rgba(99,102,241,.07);color:#a5b4fc;cursor:pointer;font-family:inherit">↩</button>
+                      <button class="rh-edit rh-edit-reply-panel" data-reply-id="${r.id}" data-pin-id="${pin.id}" title="Edit reply">${editIcon(11)}</button>
                       <button class="rh-trash" data-reply-id="${r.id}" data-pin-id="${pin.id}" title="Delete reply">${trashIcon(11)}</button>
                     </div>
                   </div>
-                  <p class="rh-reply-body">${r.body}</p>
-                </div>
-              `).join('')}
+                  ${isEditingThis ? `
+                    <textarea class="rh-edit-reply-ta" data-reply-id="${r.id}" data-pin-id="${pin.id}" rows="2" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(99,102,241,.4);border-radius:6px;color:#fff;font-size:12px;padding:6px 8px;font-family:inherit;box-sizing:border-box;outline:none;resize:none;margin-bottom:4px">${r.body}</textarea>
+                    <div style="display:flex;gap:5px;margin-bottom:2px">
+                      <button class="rh-reply-cancel rh-edit-reply-cancel-panel" data-reply-id="${r.id}">Cancel</button>
+                      <button class="rh-reply-send rh-edit-reply-save-panel" data-reply-id="${r.id}" data-pin-id="${pin.id}">Save</button>
+                    </div>
+                  ` : `<p class="rh-reply-body">${r.body}</p>`}
+                </div>`
+              }).join('')}
             </div>
           ` : ''
 
@@ -1012,10 +1064,35 @@
       }
     })
     list.querySelectorAll('.rh-reply-cancel').forEach(btn => {
-      btn.onclick = () => { replyingTo = null; replyingToReply = null; renderPinsList() }
+      btn.onclick = () => { replyingTo = null; replyingToReply = null; editingReplyId = null; renderPinsList() }
     })
     list.querySelectorAll('.rh-reply-send').forEach(btn => {
       btn.onclick = () => sendReply(btn.dataset.pin)
+    })
+    list.querySelectorAll('.rh-edit-reply-panel').forEach(btn => {
+      btn.onclick = () => {
+        editingReplyId = editingReplyId === btn.dataset.replyId ? null : btn.dataset.replyId
+        renderPinsList()
+        setTimeout(() => list.querySelector(`.rh-edit-reply-ta[data-reply-id="${editingReplyId}"]`)?.focus(), 50)
+      }
+    })
+    list.querySelectorAll('.rh-edit-reply-cancel-panel').forEach(btn => {
+      btn.onclick = () => { editingReplyId = null; renderPinsList() }
+    })
+    list.querySelectorAll('.rh-edit-reply-save-panel').forEach(btn => {
+      btn.onclick = async () => {
+        const ta = list.querySelector(`.rh-edit-reply-ta[data-reply-id="${btn.dataset.replyId}"]`)
+        const newBody = ta?.value.trim()
+        if (!newBody) return
+        await sbFetch(`replies?id=eq.${btn.dataset.replyId}`, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify({ body: newBody }),
+        })
+        const r = (replies[btn.dataset.pinId] || []).find(r => r.id === btn.dataset.replyId)
+        if (r) r.body = newBody
+        editingReplyId = null
+        renderPinsList()
+      }
     })
     list.querySelectorAll('.rh-goto-pin').forEach(header => {
       header.onclick = () => {
