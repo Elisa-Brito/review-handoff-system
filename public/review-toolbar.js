@@ -873,6 +873,46 @@
     setTimeout(() => flashPin(pin.id), 500)
   }
 
+  function navigateAndWait(pageKey) {
+    // Normalize: strip leading slash for text matching (/planejamento → planejamento)
+    const normalized = pageKey.replace(/^\//, '').toLowerCase()
+    return new Promise((resolve) => {
+      // 1. Try direct/partial text match first
+      const navCandidates = [...document.querySelectorAll(
+        'nav a,nav button,aside a,aside button,[role="menuitem"],[role="tab"]'
+      )].filter(el => !isToolbarEl(el))
+
+      const matched = navCandidates.find(el => {
+        const t = getElText(el).toLowerCase()
+        return t && (t === normalized || t.includes(normalized) || normalized.includes(t))
+      })
+      if (matched) {
+        matched.click()
+        setTimeout(() => resolve(true), 900)
+        return
+      }
+
+      // 2. Fallback: click all nav buttons until page changes to target
+      let idx = 0
+      const tryNext = () => {
+        if (idx >= navCandidates.length) { resolve(false); return }
+        const btn = navCandidates[idx++]
+        btn.click()
+        setTimeout(() => {
+          const h1 = (currentH1Text() || '').toLowerCase()
+          const active = getElText(detectActiveNavEl() || document.createElement('span')).toLowerCase()
+          if (h1.includes(normalized) || normalized.includes(h1) ||
+              active.includes(normalized) || normalized.includes(active)) {
+            resolve(true)
+          } else {
+            tryNext()
+          }
+        }, 600)
+      }
+      tryNext()
+    })
+  }
+
   function navigateToPage(pageKey) {
     const navCandidates = [...document.querySelectorAll(
       'nav a,nav button,aside a,aside button,[role="navigation"] a,[role="navigation"] button,[role="menuitem"],[role="tab"]'
@@ -1420,10 +1460,10 @@
       } else if (handoffScope === 'custom') {
         const manualPaths = handoffManualPages.map(p => p.path?.trim()).filter(Boolean)
         for (const path of manualPaths) {
-          navigateToPage(path)
-          await new Promise(r => setTimeout(r, 700))
-          const label = _currentPageKey || path
-          pages.push({ url: location.origin + path, label, html: document.documentElement.outerHTML })
+          await navigateAndWait(path)
+          await new Promise(r => setTimeout(r, 300)) // extra settle time for React render
+          const label = _currentPageKey || currentH1Text() || path
+          pages.push({ url: location.href, label, html: document.documentElement.outerHTML })
         }
         if (pages.length === 0) {
           captureCurrentPage()
