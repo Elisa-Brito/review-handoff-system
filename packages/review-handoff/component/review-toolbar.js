@@ -43,7 +43,7 @@
   let handoffData = null
   let handoffHistory = []
   let handoffLoading = false
-  let handoffActivePage = null // url da página selecionada no resultado
+  let handoffActivePage = null // index (number) da página selecionada no resultado
   let handoffRepoUrl = ''
   let handoffManualPages = [] // [{ path }]
   let handoffScope = 'current' // 'current' | 'all' | 'custom'
@@ -1380,7 +1380,7 @@
       container.querySelectorAll('.rh-hist-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           handoffData = handoffHistory[+btn.dataset.idx].data
-          handoffActivePage = handoffData.pages?.[0]?.url ?? null
+          handoffActivePage = 0
           renderHandoff()
         })
       })
@@ -1399,12 +1399,13 @@
     // ── Resultado por página ──
     const d = handoffData
     const pages = d.pages ?? []
-    const activePage = pages.find(p => p.url === handoffActivePage) ?? pages[0]
+    const activeIdx = typeof handoffActivePage === 'number' ? handoffActivePage : 0
+    const activePage = pages[activeIdx] ?? pages[0]
 
     const tabsHTML = pages.length > 1 ? `
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px">
-        ${pages.map(p => `
-          <button class="rh-page-tab ${p.url === activePage?.url ? 'active' : ''}" data-url="${p.url}">
+        ${pages.map((p, i) => `
+          <button class="rh-page-tab ${i === activeIdx ? 'active' : ''}" data-idx="${i}">
             ${p.label}
           </button>
         `).join('')}
@@ -1426,11 +1427,11 @@
 
     container.querySelectorAll('.rh-page-tab').forEach(btn => {
       btn.onclick = () => {
-        handoffActivePage = btn.dataset.url
+        handoffActivePage = +btn.dataset.idx
         renderHandoff()
       }
     })
-    document.getElementById('rh-regen-btn').onclick = () => { handoffData = null; handoffActivePage = null; renderHandoff() }
+    document.getElementById('rh-regen-btn').onclick = () => { handoffData = null; handoffActivePage = 0; renderHandoff() }
   }
 
   async function generateHandoff() {
