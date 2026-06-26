@@ -46,6 +46,7 @@
   let handoffActivePage = null // url da página selecionada no resultado
   let handoffRepoUrl = ''
   let handoffManualPages = [] // [{ path }]
+  let handoffScope = 'current' // 'current' | 'all' | 'custom'
   let replyingTo = null
   let replyingToReply = null  // { replyId, authorName } para @mention
   let pinPopoverPinId = null
@@ -905,7 +906,13 @@
     if (!pinPage || pinPage === '/') return true
     if (pinPage === _currentPageKey) return true
     const h1 = currentH1Text()
-    if (h1 && (h1 === pinPage || _pageNavMap[pinPage] === _pageNavMap[h1])) return true
+    if (h1 && h1 === pinPage) return true
+    // Check active nav element text (works even if _pageNavMap not yet populated)
+    const activeEl = detectActiveNavEl()
+    const activeText = activeEl ? getElText(activeEl) : ''
+    if (activeText && activeText === pinPage) return true
+    // Cross-reference via map
+    if (h1 && _pageNavMap[pinPage] && (_pageNavMap[pinPage] === _pageNavMap[h1] || _pageNavMap[pinPage] === h1)) return true
     return false
   }
 
@@ -921,16 +928,24 @@
     if (!navigated) {
       // Fallback: try every nav button in sequence until page matches
       // Don't filter by text — sidebar may be collapsed (no visible text)
-      const navBtns = [...document.querySelectorAll('nav button,aside button,[role="menuitem"],[role="tab"]')]
+      const navBtns = [...document.querySelectorAll('nav button,[role="menuitem"],[role="tab"]')]
         .filter(el => !isToolbarEl(el))
       let idx = 0
       const tryNext = () => {
         if (idx >= navBtns.length) { doScroll(pin); return }
-        navBtns[idx++].click()
+        const btn = navBtns[idx++]
+        btn.click()
         setTimeout(() => {
+          // Populate map immediately so onPinPage works
+          const h1 = currentH1Text()
+          const btnText = getElText(btn)
+          if (h1) {
+            if (btnText) { _pageNavMap[h1] = btnText; _pageNavMap[btnText] = btnText }
+            _pageNavMap[h1] = _pageNavMap[h1] || h1
+          }
           if (onPinPage(pinPage)) { setTimeout(() => { renderPins(); doScroll(pin) }, 150); return }
           tryNext()
-        }, 450)
+        }, 500)
       }
       tryNext()
       return
@@ -1272,14 +1287,19 @@
             style="width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:7px;color:#fff;font-size:12px;padding:7px 9px;font-family:inherit;box-sizing:border-box;outline:none;margin-bottom:4px" />
         </div>
         <div class="rh-handoff-section">
-          <p class="rh-handoff-label" style="display:flex;align-items:center;justify-content:space-between">
-            Additional pages
-            <button id="rh-add-page" style="font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.08);color:#a5b4fc;cursor:pointer;font-family:inherit">+ Add</button>
-          </p>
-          <div id="rh-pages-list">${manualPagesHTML}</div>
-          <p style="color:rgba(255,255,255,.25);font-size:11px;margin:4px 0 0;line-height:1.5">
-            Leave empty to analyse only the current URL.<br>Or add routes like /dashboard, /login…
-          </p>
+          <p class="rh-handoff-label">Pages to analyse</p>
+          <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
+            ${[['current','Current page only'],['all','All pages (auto-detect)'],['custom','Custom routes']].map(([val, label]) => `
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 8px;border-radius:7px;border:1px solid ${handoffScope===val?'rgba(99,102,241,.4)':'rgba(255,255,255,.07)'};background:${handoffScope===val?'rgba(99,102,241,.1)':'transparent'};color:${handoffScope===val?'#a5b4fc':'rgba(255,255,255,.5)'};font-size:12px" class="rh-scope-label" data-val="${val}">
+                <input type="radio" name="rh-scope" value="${val}" ${handoffScope===val?'checked':''} style="accent-color:#6366f1" />
+                ${label}
+              </label>
+            `).join('')}
+          </div>
+          ${handoffScope === 'custom' ? `
+            <div id="rh-pages-list">${manualPagesHTML}</div>
+            <button id="rh-add-page" style="font-size:11px;padding:4px 10px;border-radius:5px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.08);color:#a5b4fc;cursor:pointer;font-family:inherit;margin-top:4px">+ Add route</button>
+          ` : ''}
         </div>
         <button class="rh-generate-btn" id="rh-gen-btn" ${handoffLoading ? 'disabled' : ''}>
           ${handoffLoading ? '✨ Analysing…' : '✨ Generate Handoff'}
@@ -1299,14 +1319,17 @@
       `
 
       document.getElementById('rh-repo-input').oninput = (e) => { handoffRepoUrl = e.target.value }
-      document.getElementById('rh-add-page').onclick = () => {
+      container.querySelectorAll('input[name="rh-scope"]').forEach(radio => {
+        radio.onchange = () => { handoffScope = radio.value; renderHandoff() }
+      })
+      document.getElementById('rh-add-page')?.addEventListener('click', () => {
         handoffManualPages.push({ path: '' })
         renderHandoff()
         setTimeout(() => {
           const inputs = document.querySelectorAll('.rh-page-input')
           inputs[inputs.length - 1]?.focus()
         }, 50)
-      }
+      })
       container.querySelectorAll('.rh-page-input').forEach(input => {
         input.oninput = (e) => { handoffManualPages[+e.target.dataset.pageIdx].path = e.target.value }
       })
@@ -1376,30 +1399,40 @@
     handoffLoading = true
     renderHandoff()
     try {
-      const manualPaths = handoffManualPages.map(p => p.path?.trim()).filter(Boolean)
-
       let pages = []
-      if (manualPaths.length > 0) {
-        // Navigate to each specified page, capture HTML, send only those
+      if (handoffScope === 'all') {
+        // Navigate through every nav button and capture each unique page
+        const navBtns = [...document.querySelectorAll('nav button,[role="menuitem"],[role="tab"]')]
+          .filter(el => !isToolbarEl(el))
+        const seen = new Set()
+        for (const btn of navBtns) {
+          btn.click()
+          await new Promise(r => setTimeout(r, 600))
+          const label = currentH1Text() || getElText(btn) || location.pathname
+          if (seen.has(label)) continue
+          seen.add(label)
+          pages.push({ url: location.href, label, html: document.documentElement.outerHTML })
+        }
+        if (pages.length === 0) {
+          captureCurrentPage()
+          pages = [{ url: location.href, label: _currentPageKey || 'Page', html: document.documentElement.outerHTML }]
+        }
+      } else if (handoffScope === 'custom') {
+        const manualPaths = handoffManualPages.map(p => p.path?.trim()).filter(Boolean)
         for (const path of manualPaths) {
           navigateToPage(path)
-          await new Promise(r => setTimeout(r, 600))
+          await new Promise(r => setTimeout(r, 700))
           const label = _currentPageKey || path
-          pages.push({
-            url: location.origin + path,
-            label,
-            html: document.documentElement.outerHTML,
-          })
+          pages.push({ url: location.origin + path, label, html: document.documentElement.outerHTML })
+        }
+        if (pages.length === 0) {
+          captureCurrentPage()
+          pages = [{ url: location.href, label: _currentPageKey || 'Page', html: document.documentElement.outerHTML }]
         }
       } else {
-        // No manual routes — just send the current page
+        // 'current' — just the active page
         captureCurrentPage()
-        const label = _currentPageKey || 'Page'
-        pages = [{
-          url: location.href,
-          label,
-          html: _capturedPages[_currentPageKey] || document.documentElement.outerHTML,
-        }]
+        pages = [{ url: location.href, label: _currentPageKey || 'Page', html: _capturedPages[_currentPageKey] || document.documentElement.outerHTML }]
       }
 
       const res = await fetch(`${API_BASE}/api/handoff`, {
