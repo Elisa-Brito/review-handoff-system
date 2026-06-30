@@ -213,16 +213,9 @@
     overlay.id = 'rh-overlay'
     overlay.addEventListener('click', (e) => {
       if (mode !== 'comment') return
-      const container = getPinContainer()
-      let x, y
-      if (container === document.body) {
-        x = (e.pageX / document.documentElement.clientWidth) * 100
-        y = (e.pageY / document.documentElement.scrollHeight) * 100
-      } else {
-        const rect = container.getBoundingClientRect()
-        x = ((e.clientX - rect.left + container.scrollLeft) / container.scrollWidth) * 100
-        y = ((e.clientY - rect.top + container.scrollTop) / container.scrollHeight) * 100
-      }
+      // Always use document-relative coordinates to avoid container detection issues
+      const x = (e.pageX / document.documentElement.scrollWidth) * 100
+      const y = (e.pageY / document.documentElement.scrollHeight) * 100
       pendingPos = { x, y }
       closePinPopover()
       showPopover(e.clientX, e.clientY)
@@ -674,28 +667,21 @@
   function visiblePins() {
     const key = _currentPageKey
     const h1 = currentH1Text()
+    // If page not identified yet, show all pins (avoids blank on refresh)
+    if (!key || key === '/') return pins.filter(p => p.status !== 'resolved' || p.id === highlightedPinId)
     return pins.filter(p => {
       if (p.status === 'resolved' && p.id !== highlightedPinId) return false
       if (!p.route_path || p.route_path === '/') return true
       if (p.route_path === key) return true
-      // fallback: pin saved with h1-based key before nav-click tracking was added
       if (h1 && p.route_path === h1) return true
       return false
     })
   }
 
   function pinViewportPos(pin) {
-    const container = getPinContainer()
-    if (container === document.body) {
-      return {
-        x: pin.x_percent / 100 * document.documentElement.clientWidth,
-        y: pin.y_percent / 100 * document.documentElement.scrollHeight - window.scrollY,
-      }
-    }
-    const rect = container.getBoundingClientRect()
     return {
-      x: pin.x_percent / 100 * container.scrollWidth - container.scrollLeft + rect.left,
-      y: pin.y_percent / 100 * container.scrollHeight - container.scrollTop + rect.top,
+      x: pin.x_percent / 100 * document.documentElement.scrollWidth,
+      y: pin.y_percent / 100 * document.documentElement.scrollHeight - window.scrollY,
     }
   }
 
@@ -861,15 +847,8 @@
   }
 
   function doScroll(pin) {
-    const container = getPinContainer()
-    const margin = 120
-    if (container !== document.body) {
-      const targetTop = pin.y_percent / 100 * container.scrollHeight - margin
-      container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' })
-    } else {
-      const targetTop = pin.y_percent / 100 * document.documentElement.scrollHeight - margin
-      window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' })
-    }
+    const targetTop = pin.y_percent / 100 * document.documentElement.scrollHeight - 120
+    window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' })
     setTimeout(() => flashPin(pin.id), 500)
   }
 
@@ -1536,6 +1515,8 @@
       buildUI()
       watchRouteChanges()
       renderPins()
+      // Re-render after React hydration in case h1 wasn't available yet
+      setTimeout(renderPins, 1000)
     } catch (e) {
       console.error('[review-handoff]', e)
     }
