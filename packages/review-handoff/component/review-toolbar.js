@@ -667,8 +667,8 @@
   function visiblePins() {
     const key = _currentPageKey
     const h1 = currentH1Text()
-    // If page not identified yet, show all pins (avoids blank on refresh)
-    if (!key || key === '/') return pins.filter(p => p.status !== 'resolved' || p.id === highlightedPinId)
+    // If page not identified yet, hide pins (they'll appear once key is detected)
+    if (!key) return []
     return pins.filter(p => {
       if (p.status === 'resolved' && p.id !== highlightedPinId) return false
       if (!p.route_path || p.route_path === '/') return true
@@ -1173,7 +1173,7 @@
         body,
         author_name: authorName,
         status: 'open',
-        route_path: _currentPageKey || detectPageKey(),
+        route_path: _currentPageKey || detectPageKey() || location.pathname || '/',
       }),
     })
     pins.push(data[0])
@@ -1515,8 +1515,15 @@
       buildUI()
       watchRouteChanges()
       renderPins()
-      // Re-render after React hydration in case h1 wasn't available yet
-      setTimeout(renderPins, 1000)
+      // Retry until React hydrates and page key is detected
+      let attempts = 0
+      const waitForKey = setInterval(() => {
+        const key = detectPageKey()
+        if (key || ++attempts > 20) {
+          clearInterval(waitForKey)
+          if (key && key !== _currentPageKey) { _currentPageKey = key; renderPins() }
+        }
+      }, 150)
     } catch (e) {
       console.error('[review-handoff]', e)
     }
