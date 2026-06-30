@@ -118,7 +118,7 @@
       #rh-pin-popover .rh-pp-send:disabled{opacity:.5;cursor:not-allowed}
 
       /* Pins */
-      .rh-pin{position:fixed;width:32px;height:32px;border-radius:50% 50% 50% 4px;background:#6366f1;border:2.5px solid #fff;cursor:pointer;pointer-events:all;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:2147483641;display:flex;align-items:center;justify-content:center;transition:transform .15s ease,box-shadow .15s ease}
+      .rh-pin{position:absolute;width:32px;height:32px;border-radius:50% 50% 50% 4px;background:#6366f1;border:2.5px solid #fff;cursor:pointer;pointer-events:all;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:2147483641;display:flex;align-items:center;justify-content:center;transition:transform .15s ease,box-shadow .15s ease}
       .rh-pin:hover{transform:scale(1.12);box-shadow:0 4px 14px rgba(0,0,0,.4)}
       .rh-pin.resolved{background:#22c55e}
       .rh-pin span{color:#fff;font-size:12px;font-weight:700;font-family:-apple-system,sans-serif;line-height:1;user-select:none}
@@ -681,7 +681,7 @@
   function pinViewportPos(pin) {
     return {
       x: pin.x_percent / 100 * document.documentElement.scrollWidth,
-      y: pin.y_percent / 100 * document.documentElement.scrollHeight - window.scrollY,
+      y: pin.y_percent / 100 * document.documentElement.scrollHeight,
     }
   }
 
@@ -817,8 +817,6 @@
     const origReplace = history.replaceState.bind(history)
     history.replaceState = (...args) => { origReplace(...args); onPageChange() }
     window.addEventListener('popstate', onPageChange)
-    // Capture scroll from any element (including inner containers)
-    document.addEventListener('scroll', () => renderPins(), { passive: true, capture: true })
 
     // DOM-based routing — watch subtree but ignore rh-pin mutations
     let _observerDebounce = null
