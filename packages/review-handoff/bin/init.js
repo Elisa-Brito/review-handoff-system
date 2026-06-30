@@ -5,110 +5,141 @@ const path = require('path')
 
 const cwd = process.cwd()
 const CDN_URL = 'https://review-handoff-system.vercel.app/review-toolbar.js'
-const SCRIPT_TAG = `<script src="${CDN_URL}"></script>`
-const SCRIPT_TAG_JSX = `<script src="${CDN_URL}" />`
 
 if (process.argv[2] === 'remove') {
   require('./remove.js')
   process.exit(0)
 }
 
-console.log('\n🔍 Review Handoff — iniciando setup...\n')
+console.log('\n🔍 Review Handoff Plugin\n')
 
-const isNextJs = fs.existsSync(path.join(cwd, 'next.config.js')) ||
-  fs.existsSync(path.join(cwd, 'next.config.mjs')) ||
-  fs.existsSync(path.join(cwd, 'next.config.ts'))
+// ── Detect project type and inject ───────────────────────────────────────────
 
-if (isNextJs) {
-  setupNextJs()
-} else {
-  setupHtml()
+// 1. Vite / CRA / plain HTML — has index.html at root
+const viteHtml = path.join(cwd, 'index.html')
+if (fs.existsSync(viteHtml)) {
+  injectHtml(viteHtml)
+  process.exit(0)
 }
 
-function setupNextJs() {
-  console.log('✓ Projeto Next.js detectado\n')
+// 2. Next.js App Router — has app/layout.tsx|jsx
+const nextLayouts = [
+  path.join(cwd, 'app', 'layout.tsx'),
+  path.join(cwd, 'app', 'layout.jsx'),
+  path.join(cwd, 'src', 'app', 'layout.tsx'),
+  path.join(cwd, 'src', 'app', 'layout.jsx'),
+]
+const nextLayout = nextLayouts.find(p => fs.existsSync(p))
+if (nextLayout) {
+  injectNextLayout(nextLayout)
+  process.exit(0)
+}
 
-  // Injeta CDN script tag no layout (não copia componente local)
-  const layoutPaths = [
-    path.join(cwd, 'app', 'layout.tsx'),
-    path.join(cwd, 'app', 'layout.jsx'),
-    path.join(cwd, 'src', 'app', 'layout.tsx'),
-    path.join(cwd, 'src', 'app', 'layout.jsx'),
-  ]
-  const layoutPath = layoutPaths.find(p => fs.existsSync(p))
+// 3. Next.js Pages Router — has pages/_document.tsx|jsx
+const nextDocs = [
+  path.join(cwd, 'pages', '_document.tsx'),
+  path.join(cwd, 'pages', '_document.jsx'),
+  path.join(cwd, 'src', 'pages', '_document.tsx'),
+  path.join(cwd, 'src', 'pages', '_document.jsx'),
+]
+const nextDoc = nextDocs.find(p => fs.existsSync(p))
+if (nextDoc) {
+  injectNextDocument(nextDoc)
+  process.exit(0)
+}
 
-  if (!layoutPath) {
-    console.log('\n⚠️  Não encontrei app/layout.tsx. Adicione manualmente antes do </body>:\n')
-    console.log(`   ${SCRIPT_TAG_JSX}\n`)
-    printDone()
-    return
+// 4. CRA / other — public/index.html
+const publicHtml = path.join(cwd, 'public', 'index.html')
+if (fs.existsSync(publicHtml)) {
+  injectHtml(publicHtml)
+  process.exit(0)
+}
+
+// 5. Fallback — print manual instructions
+console.log('⚠️  Não foi possível detectar o projeto automaticamente.')
+console.log('   Adicione manualmente antes do </body> no HTML principal:\n')
+console.log(`   <script src="${CDN_URL}"></script>\n`)
+printDone()
+
+// ── Injection helpers ─────────────────────────────────────────────────────────
+
+function injectHtml(htmlPath) {
+  let html = fs.readFileSync(htmlPath, 'utf-8')
+  const tag = `<script src="${CDN_URL}"></script>`
+
+  if (html.includes(CDN_URL)) {
+    console.log(`✓ Já instalado em ${rel(htmlPath)}`)
+    printDone(); return
   }
 
-  let layout = fs.readFileSync(layoutPath, 'utf-8')
+  // Replace any old local reference
+  html = html.replace(/<script[^>]*review-toolbar\.js[^>]*><\/script>/g, tag)
 
-  // Já tem CDN → nada a fazer
-  if (layout.includes('review-handoff-system.vercel.app')) {
-    console.log('✓ Script CDN já está no layout.')
-    printDone()
-    return
+  if (!html.includes(CDN_URL)) {
+    html = html.replace('</body>', `  ${tag}\n</body>`)
   }
 
-  // Tem versão antiga (componente ou outro script) → substituir
-  if (layout.includes('ReviewToolbar') || layout.includes('review-toolbar')) {
-    layout = layout.replace(/import ReviewToolbar from ['"][^'"]+['"]\n?/g, '')
-    layout = layout.replace(/\s*<ReviewToolbar\s*\/>\n?/g, '')
-    layout = layout.replace(/<script[^>]*review-toolbar[^>]*\/?>\s*(<\/script>)?/g, '')
-    console.log('✓ Versão antiga removida do layout')
-  }
-
-  // Injeta CDN antes do </body>
-  if (layout.includes('</body>')) {
-    layout = layout.replace('</body>', `      ${SCRIPT_TAG_JSX}\n      </body>`)
-  } else {
-    // Fallback: injeta antes do fechamento do componente raiz
-    layout = layout.replace(/(<\/[A-Za-z]+>\s*\)[\s\n]*;?\s*$)/, `      ${SCRIPT_TAG_JSX}\n$1`)
-  }
-
-  fs.writeFileSync(layoutPath, layout, 'utf-8')
-  console.log(`✓ Script CDN injetado em ${layoutPath.replace(cwd, '.')}`)
+  fs.writeFileSync(htmlPath, html, 'utf-8')
+  console.log(`✓ Script injetado em ${rel(htmlPath)}`)
   printDone()
 }
 
-function setupHtml() {
-  const htmlPaths = [
-    path.join(cwd, 'index.html'),
-    path.join(cwd, 'public', 'index.html'),
-    path.join(cwd, 'src', 'index.html'),
-  ]
-  const htmlPath = htmlPaths.find(p => fs.existsSync(p))
+function injectNextLayout(layoutPath) {
+  let src = fs.readFileSync(layoutPath, 'utf-8')
+  const tag = `<script src="${CDN_URL}"></script>`
 
-  if (htmlPath) {
-    let html = fs.readFileSync(htmlPath, 'utf-8')
-
-    if (html.includes('review-handoff-system.vercel.app')) {
-      console.log('✓ Script CDN já está no HTML.')
-      printDone()
-      return
-    }
-
-    if (html.includes('review-toolbar.js') || html.includes('review-handoff-plugin')) {
-      html = html.replace(/<script[^>]*review-toolbar\.js[^>]*><\/script>/g, SCRIPT_TAG)
-      fs.writeFileSync(htmlPath, html, 'utf-8')
-      console.log(`✓ Script atualizado para CDN em ${htmlPath.replace(cwd, '.')}`)
-    } else {
-      html = html.replace('</body>', `  ${SCRIPT_TAG}\n</body>`)
-      fs.writeFileSync(htmlPath, html, 'utf-8')
-      console.log(`✓ Script CDN injetado em ${htmlPath.replace(cwd, '.')}`)
-    }
-  } else {
-    console.log('⚠️  Adicione manualmente antes do </body> em todos os HTMLs:\n')
-    console.log(`   ${SCRIPT_TAG}\n`)
+  if (src.includes(CDN_URL)) {
+    console.log(`✓ Já instalado em ${rel(layoutPath)}`)
+    printDone(); return
   }
 
+  // Remove old component-style injection if present
+  if (src.includes('ReviewToolbar')) {
+    src = src.replace(/import ReviewToolbar from ['"][^'"]+['"]\n?/g, '')
+    src = src.replace(/[ \t]*<ReviewToolbar\s*\/>\n?/g, '')
+  }
+  // Remove any old script tag for review-toolbar
+  src = src.replace(/[ \t]*<script[^>]*review-toolbar[^>]*\/?>\s*(<\/script>)?\n?/g, '')
+
+  // Inject before </body>
+  if (src.includes('</body>')) {
+    src = src.replace('</body>', `        ${tag}\n      </body>`)
+  } else {
+    console.log(`⚠️  Não encontrei </body> em ${rel(layoutPath)}. Adicione manualmente:\n   ${tag}\n`)
+    printDone(); return
+  }
+
+  fs.writeFileSync(layoutPath, src, 'utf-8')
+  console.log(`✓ Script injetado em ${rel(layoutPath)}`)
   printDone()
 }
+
+function injectNextDocument(docPath) {
+  let src = fs.readFileSync(docPath, 'utf-8')
+  const tag = `<script src="${CDN_URL}"></script>`
+
+  if (src.includes(CDN_URL)) {
+    console.log(`✓ Já instalado em ${rel(docPath)}`)
+    printDone(); return
+  }
+
+  // Inject before </body> or </Body>
+  if (src.includes('</Body>')) {
+    src = src.replace('</Body>', `          ${tag}\n        </Body>`)
+  } else if (src.includes('</body>')) {
+    src = src.replace('</body>', `          ${tag}\n        </body>`)
+  } else {
+    console.log(`⚠️  Não encontrei </Body> em ${rel(docPath)}. Adicione manualmente:\n   ${tag}\n`)
+    printDone(); return
+  }
+
+  fs.writeFileSync(docPath, src, 'utf-8')
+  console.log(`✓ Script injetado em ${rel(docPath)}`)
+  printDone()
+}
+
+function rel(p) { return p.replace(cwd, '.') }
 
 function printDone() {
-  console.log('\n✅ Pronto! O plugin carrega sempre a versão mais recente via CDN.')
-  console.log('   Faça o deploy normalmente e compartilhe o link.\n')
+  console.log('\n✅ Pronto! Faça o deploy e compartilhe o link.\n')
 }
