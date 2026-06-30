@@ -145,8 +145,6 @@ function printDone() {
   console.log('   1. Faça o deploy do projeto normalmente')
   console.log('   2. Compartilhe o link com quem precisar revisar')
   console.log('\n   ⚠️  Algo deu errado ou prefere que a gente injete por você?')
-  console.log('   Compartilhe o repositório GitHub:')
-  console.log('   → Acesse: github.com/SEU-REPO/settings/collaborators')
-  console.log('   → Adicione: elisa-brito')
+  console.log('   → Torne o repo público: GitHub → Settings → Danger Zone → Make public')
   console.log('   → Envie o link do repo para a Elisa\n')
 }
