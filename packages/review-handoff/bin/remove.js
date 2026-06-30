@@ -20,16 +20,14 @@ if (isNextJs) {
 function removeNextJs() {
   console.log('✓ Projeto Next.js detectado\n')
 
-  // Remove componente
+  // Remove componente local se existir (versões antigas)
   const componentPath = path.join(cwd, 'components', 'ReviewToolbar.tsx')
   if (fs.existsSync(componentPath)) {
     fs.unlinkSync(componentPath)
     console.log('✓ components/ReviewToolbar.tsx removido')
-  } else {
-    console.log('⚠️  components/ReviewToolbar.tsx não encontrado')
   }
 
-  // Remove do layout
+  // Remove do layout (CDN tag ou componente antigo)
   const layoutPaths = [
     path.join(cwd, 'app', 'layout.tsx'),
     path.join(cwd, 'app', 'layout.jsx'),
@@ -40,13 +38,21 @@ function removeNextJs() {
 
   if (layoutPath) {
     let layout = fs.readFileSync(layoutPath, 'utf-8')
+    let changed = false
     if (layout.includes('ReviewToolbar')) {
-      layout = layout.replace(/import ReviewToolbar from ['"]@\/components\/ReviewToolbar['"]\n?/g, '')
-      layout = layout.replace(/\s*<ReviewToolbar \/>\n?/g, '')
+      layout = layout.replace(/import ReviewToolbar from ['"][^'"]+['"]\n?/g, '')
+      layout = layout.replace(/\s*<ReviewToolbar\s*\/>\n?/g, '')
+      changed = true
+    }
+    if (layout.includes('review-toolbar') || layout.includes('review-handoff-system')) {
+      layout = layout.replace(/\s*<script[^>]*review-toolbar[^>]*\/?>\s*(<\/script>)?\n?/g, '')
+      changed = true
+    }
+    if (changed) {
       fs.writeFileSync(layoutPath, layout, 'utf-8')
-      console.log(`✓ ReviewToolbar removido de ${layoutPath.replace(cwd, '.')}`)
+      console.log(`✓ Plugin removido de ${layoutPath.replace(cwd, '.')}`)
     } else {
-      console.log('⚠️  ReviewToolbar não encontrado no layout')
+      console.log('⚠️  Plugin não encontrado no layout')
     }
   }
 
