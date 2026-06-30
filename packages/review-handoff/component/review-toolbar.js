@@ -1251,30 +1251,78 @@
 
   // ── Handoff ──────────────────────────────────────────────────────────────
 
+  function renderTokensSection(tokens) {
+    if (!tokens) return ''
+    const sections = []
+
+    if (tokens.fonts?.families?.length) {
+      sections.push(`
+        <div class="rh-handoff-section">
+          <p class="rh-handoff-label">🔤 Fonts</p>
+          ${tokens.fonts.families.map(f => `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+              <span style="color:#fff;font-size:12px;font-family:'${f}',sans-serif">${f}</span>
+              <button onclick="navigator.clipboard.writeText('${f}')" style="font-size:10px;color:rgba(255,255,255,.3);background:none;border:none;cursor:pointer;padding:0">copy</button>
+            </div>
+          `).join('')}
+        </div>
+      `)
+    }
+
+    const tokenCategories = [
+      { key: 'colors', label: '🎨 Color Tokens' },
+      { key: 'spacing', label: '📐 Spacing Tokens' },
+      { key: 'typography', label: '✏️ Typography Tokens' },
+      { key: 'radii', label: '⭕ Radius Tokens' },
+      { key: 'shadows', label: '🌑 Shadow Tokens' },
+    ]
+    for (const { key, label } of tokenCategories) {
+      const entries = Object.entries(tokens[key] || {})
+      if (!entries.length) continue
+      sections.push(`
+        <div class="rh-handoff-section">
+          <p class="rh-handoff-label">${label}</p>
+          ${entries.map(([name, value]) => `
+            <div onclick="navigator.clipboard.writeText('${name}')" style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer">
+              ${key === 'colors' && (value.startsWith('#') || value.startsWith('rgb')) ? `<div style="width:12px;height:12px;border-radius:3px;background:${value};flex-shrink:0;margin-right:6px;border:1px solid rgba(255,255,255,.1)"></div>` : ''}
+              <span style="color:rgba(255,255,255,.5);font-size:10px;font-family:monospace;flex:1">${name}</span>
+              <span style="color:rgba(255,255,255,.3);font-size:10px;font-family:monospace;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${value}</span>
+            </div>
+          `).join('')}
+        </div>
+      `)
+    }
+
+    return sections.join('')
+  }
+
   function renderPageSection(page) {
+    const tokens = handoffData?.tokens
     return `
-      ${page.colors?.length ? `
-        <div class="rh-handoff-section">
-          <p class="rh-handoff-label">🎨 Colors</p>
-          ${page.colors.map(c => `
-            <div class="rh-color-chip" onclick="navigator.clipboard.writeText('${c.hex}')">
-              <div class="rh-color-dot" style="background:${c.hex}"></div>
-              <div><div class="rh-color-name">${c.name}</div><div class="rh-color-hex">${c.hex}</div></div>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
-      ${page.typography?.length ? `
-        <div class="rh-handoff-section">
-          <p class="rh-handoff-label">✏️ Typography</p>
-          ${page.typography.map(t => `
-            <div class="rh-type-row">
-              <div class="rh-type-name">${t.name}</div>
-              <div class="rh-type-detail">${t.fontFamily} · ${t.fontSize}</div>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
+      ${tokens ? renderTokensSection(tokens) : `
+        ${page.colors?.length ? `
+          <div class="rh-handoff-section">
+            <p class="rh-handoff-label">🎨 Colors</p>
+            ${page.colors.map(c => `
+              <div class="rh-color-chip" onclick="navigator.clipboard.writeText('${c.hex}')">
+                <div class="rh-color-dot" style="background:${c.hex}"></div>
+                <div><div class="rh-color-name">${c.name}</div><div class="rh-color-hex">${c.hex}</div></div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+        ${page.typography?.length ? `
+          <div class="rh-handoff-section">
+            <p class="rh-handoff-label">✏️ Typography</p>
+            ${page.typography.map(t => `
+              <div class="rh-type-row">
+                <div class="rh-type-name">${t.name}</div>
+                <div class="rh-type-detail">${t.fontFamily} · ${t.fontSize}</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      `}
       ${page.components?.length ? `
         <div class="rh-handoff-section">
           <p class="rh-handoff-label">🧩 Components</p>
@@ -1411,6 +1459,67 @@
     document.getElementById('rh-regen-btn').onclick = () => { handoffData = null; handoffActivePage = 0; renderHandoff() }
   }
 
+  function extractDesignTokens() {
+    const rootStyle = getComputedStyle(document.documentElement)
+    const tokens = { colors: {}, spacing: {}, typography: {}, radii: {}, shadows: {}, other: {} }
+
+    // Extract all CSS custom properties from :root rules
+    for (const sheet of document.styleSheets) {
+      try {
+        for (const rule of sheet.cssRules) {
+          if (!rule.selectorText || !rule.selectorText.includes(':root')) continue
+          for (const prop of rule.style) {
+            if (!prop.startsWith('--')) continue
+            const value = rootStyle.getPropertyValue(prop).trim()
+            if (!value) continue
+            const n = prop.toLowerCase()
+            if (n.includes('color') || n.includes('bg') || n.includes('background') || n.includes('fill') || /--[a-z]+-\d{2,3}$/.test(prop)) {
+              tokens.colors[prop] = value
+            } else if (n.includes('space') || n.includes('gap') || n.includes('padding') || n.includes('margin') || (n.includes('size') && !n.includes('font'))) {
+              tokens.spacing[prop] = value
+            } else if (n.includes('font') || n.includes('text') || n.includes('line-height') || n.includes('letter')) {
+              tokens.typography[prop] = value
+            } else if (n.includes('radius') || n.includes('rounded') || n.includes('round')) {
+              tokens.radii[prop] = value
+            } else if (n.includes('shadow')) {
+              tokens.shadows[prop] = value
+            } else {
+              tokens.other[prop] = value
+            }
+          }
+        }
+      } catch (e) { /* cross-origin sheet */ }
+    }
+
+    // Fonts — use Font Loading API for accuracy
+    const fontFamilies = new Set()
+    try {
+      for (const font of document.fonts) { fontFamilies.add(font.family.replace(/['"]/g, '').trim()) }
+    } catch (e) {}
+
+    // Fallback: computed font-family on body + html
+    ;[document.documentElement, document.body].forEach(el => {
+      const f = getComputedStyle(el).fontFamily
+      if (f) f.split(',').forEach(fam => fontFamilies.add(fam.replace(/['"]/g, '').trim()))
+    })
+
+    // CSS variable fonts
+    const fontVarVal = rootStyle.getPropertyValue('--font-family') || rootStyle.getPropertyValue('--font-sans') || rootStyle.getPropertyValue('--font-body')
+    if (fontVarVal) fontVarVal.split(',').forEach(f => fontFamilies.add(f.replace(/['"]/g, '').trim()))
+
+    // Google Fonts links
+    const googleFontsUrls = [...document.querySelectorAll('link[href*="fonts.googleapis.com"]')].map(el => el.href)
+
+    return {
+      ...tokens,
+      fonts: {
+        families: [...fontFamilies].filter(f => f && f !== 'inherit' && f !== 'initial'),
+        googleFontsUrls,
+      },
+      hasTokens: Object.values(tokens).some(cat => Object.keys(cat).length > 0),
+    }
+  }
+
   async function generateHandoff() {
     if (!reviewId) return
     handoffRepoUrl = document.getElementById('rh-repo-input')?.value.trim() ?? handoffRepoUrl
@@ -1453,6 +1562,7 @@
         pages = [{ url: location.href, label: _currentPageKey || 'Page', html: _capturedPages[_currentPageKey] || document.documentElement.outerHTML }]
       }
 
+      const designTokens = extractDesignTokens()
       const res = await fetch(`${API_BASE}/api/handoff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1461,6 +1571,7 @@
           reviewId,
           repoUrl: handoffRepoUrl || undefined,
           pages,
+          designTokens,
         }),
       })
       const data = await res.json()

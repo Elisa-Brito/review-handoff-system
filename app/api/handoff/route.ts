@@ -425,7 +425,7 @@ async function fetchRepoFiles(repoUrl: string): Promise<string> {
 
 export async function POST(req: Request) {
   try {
-    const { vercelUrl, repoUrl, manualRoutes, reviewId, pages: preRenderedPages } = await req.json()
+    const { vercelUrl, repoUrl, manualRoutes, reviewId, pages: preRenderedPages, designTokens } = await req.json()
     if (!vercelUrl) return NextResponse.json({ error: 'URL required' }, { status: 400 })
 
     const repoContent = repoUrl?.trim() ? await fetchRepoFiles(repoUrl.trim()) : ''
@@ -469,12 +469,25 @@ export async function POST(req: Request) {
       return true
     }).slice(0, 12)
 
+    // Prefer browser-extracted tokens (accurate) over server-side CSS parsing
+    const browserTokens = designTokens?.hasTokens ? designTokens : null
+
     const handoff = {
       pages: pagesAnalyzed,
       colors: globalColors,
       typography: pagesAnalyzed[0]?.typography ?? [],
       spacing: pagesAnalyzed[0]?.spacing ?? [],
       components: [...new Map(pagesAnalyzed.flatMap(p => p.components).map(c => [c.name, c])).values()].slice(0, 6),
+      // Design tokens from browser (CSS custom properties + real fonts)
+      tokens: browserTokens ? {
+        colors: browserTokens.colors,
+        spacing: browserTokens.spacing,
+        typography: browserTokens.typography,
+        radii: browserTokens.radii,
+        shadows: browserTokens.shadows,
+        other: browserTokens.other,
+        fonts: browserTokens.fonts,
+      } : null,
       summary: `Analysed ${pages.length} page${pages.length !== 1 ? 's' : ''}: ${pagesAnalyzed.map(p => p.label).join(', ')}.${repoUrl ? ' Includes repository data.' : ''}`,
     }
 
