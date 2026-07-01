@@ -644,16 +644,20 @@
 
   function getPinContainer() {
     if (_pinContainer) return _pinContainer
+    const vw = window.innerWidth, vh = window.innerHeight
     let best = null, bestArea = 0
     document.querySelectorAll('*').forEach(el => {
       if (isToolbarEl(el) || el === document.body || el === document.documentElement) return
       const s = window.getComputedStyle(el)
-      if (/(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 10) {
-        const area = el.clientWidth * el.clientHeight
-        if (area > bestArea) { bestArea = area; best = el }
-      }
+      if (!/(auto|scroll)/.test(s.overflowY)) return
+      if (el.scrollHeight <= el.clientHeight + 10) return
+      const rect = el.getBoundingClientRect()
+      // Must cover at least 40% of viewport in both dimensions
+      if (rect.width < vw * 0.4 || rect.height < vh * 0.4) return
+      const area = rect.width * rect.height
+      if (area > bestArea) { bestArea = area; best = el }
     })
-    _pinContainer = best || null // null = use window scroll
+    _pinContainer = best || null // null = window scrolls
     return _pinContainer
   }
 
@@ -798,7 +802,9 @@
         const newKey = detectPageKey()
         if (newKey && newKey !== _currentPageKey) {
           _currentPageKey = newKey
+          _pinContainer = null // reset so container is re-detected for new page layout
           setTimeout(captureCurrentPage, 300)
+          setTimeout(() => document.dispatchEvent(new Event('rh-page-changed')), 500)
           closePinPopover()
           cancelComment()
           renderPins()
@@ -844,14 +850,18 @@
     })
     observer.observe(document.body, { childList: true, subtree: true })
 
-    // Attach scroll listener to the correct container (inner div or window)
+    // Attach scroll listener — re-detects container after React renders
+    let _scrollTarget = null
     const attachScrollListener = () => {
+      if (_scrollTarget) _scrollTarget.removeEventListener('scroll', renderPins)
+      _pinContainer = null
       const c = getPinContainer()
-      const target = c || window
-      target.addEventListener('scroll', () => renderPins(), { passive: true })
+      _scrollTarget = c || window
+      _scrollTarget.addEventListener('scroll', renderPins, { passive: true })
     }
-    // Wait for container to be rendered before attaching
     setTimeout(attachScrollListener, 800)
+    // Re-attach when page changes (container may differ per page)
+    document.addEventListener('rh-page-changed', attachScrollListener)
   }
 
   function flashPin(pinId) {
