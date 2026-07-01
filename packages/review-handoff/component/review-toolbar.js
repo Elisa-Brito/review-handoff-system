@@ -1529,14 +1529,15 @@
       let pages = []
       if (handoffScope === 'all') {
         // Navigate through every nav button and capture each unique page
-        const navBtns = [...document.querySelectorAll('nav button,[role="menuitem"],[role="tab"]')]
-          .filter(el => !isToolbarEl(el))
+        const navBtns = [...document.querySelectorAll(
+          'nav a, nav button, aside a, aside button, [role="menuitem"], [role="navigation"] a, [role="navigation"] button, [data-sidebar] a, [data-sidebar] button'
+        )].filter(el => !isToolbarEl(el) && (el.offsetWidth > 0 || el.offsetHeight > 0))
         const seen = new Set()
         for (const btn of navBtns) {
           btn.click()
-          await new Promise(r => setTimeout(r, 600))
-          const label = currentH1Text() || getElText(btn) || location.pathname
-          if (seen.has(label)) continue
+          await new Promise(r => setTimeout(r, 900))
+          const label = currentH1Text() || detectPageKey() || getElText(btn) || location.pathname
+          if (!label || seen.has(label)) continue
           seen.add(label)
           pages.push({ url: location.href, label, html: document.documentElement.outerHTML })
         }
