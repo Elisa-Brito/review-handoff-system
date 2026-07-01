@@ -213,22 +213,30 @@
     overlay.id = 'rh-overlay'
     overlay.addEventListener('click', (e) => {
       if (mode !== 'comment') return
-      const container = getPinContainer()
+      // Find the most specific (smallest) scroll container at the click point
+      const container = getContainerAtPoint(e.clientX, e.clientY)
       let x, y
       if (!container) {
-        x = (e.pageX / document.documentElement.scrollWidth) * 100
-        y = (e.pageY / document.documentElement.scrollHeight) * 100
+        // No scroll container — check if click is in a fixed header zone
+        const mainC = getPinContainer()
+        if (mainC) {
+          const rect = mainC.getBoundingClientRect()
+          if (e.clientY < rect.top || e.clientX < rect.left) {
+            // Fixed header area — store as viewport % with 10000 offset
+            x = 10000 + (e.clientX / window.innerWidth) * 100
+            y = 10000 + (e.clientY / window.innerHeight) * 100
+          } else {
+            x = ((e.clientX - rect.left + mainC.scrollLeft) / mainC.scrollWidth) * 100
+            y = (e.clientY - rect.top + mainC.scrollTop) / mainC.scrollHeight * 100
+          }
+        } else {
+          x = (e.pageX / document.documentElement.scrollWidth) * 100
+          y = (e.pageY / document.documentElement.scrollHeight) * 100
+        }
       } else {
         const rect = container.getBoundingClientRect()
-        // Click is outside (above/left of) the scroll container = fixed header area
-        // Store as viewport percentage with 10000 offset so renderPins knows to use position:fixed
-        if (e.clientY < rect.top || e.clientX < rect.left) {
-          x = 10000 + (e.clientX / window.innerWidth) * 100
-          y = 10000 + (e.clientY / window.innerHeight) * 100
-        } else {
-          x = ((e.clientX - rect.left + container.scrollLeft) / container.scrollWidth) * 100
-          y = (e.clientY - rect.top + container.scrollTop) / container.scrollHeight * 100
-        }
+        x = ((e.clientX - rect.left + container.scrollLeft) / container.scrollWidth) * 100
+        y = (e.clientY - rect.top + container.scrollTop) / container.scrollHeight * 100
       }
       pendingPos = { x, y }
       closePinPopover()
@@ -649,23 +657,59 @@
   let _capturedPages = {} // { pageKey: html }
   let _pageNavMap = {} // { routePath: navButtonText } — built lazily as user navigates
 
-  function getPinContainer() {
-    if (_pinContainer) return _pinContainer
-    const vw = window.innerWidth, vh = window.innerHeight
-    let best = null, bestArea = 0
+  // Returns all scrollable containers in the page (not toolbar, not body/html)
+  function allScrollContainers() {
+    const result = []
     document.querySelectorAll('*').forEach(el => {
       if (isToolbarEl(el) || el === document.body || el === document.documentElement) return
       const s = window.getComputedStyle(el)
       if (!/(auto|scroll)/.test(s.overflowY)) return
       if (el.scrollHeight <= el.clientHeight + 10) return
+      result.push(el)
+    })
+    return result
+  }
+
+  // Smallest scrollable container whose bounds contain the viewport point (clientX, clientY)
+  function getContainerAtPoint(clientX, clientY) {
+    let best = null, bestArea = Infinity
+    allScrollContainers().forEach(el => {
       const rect = el.getBoundingClientRect()
-      // Must cover at least 40% of viewport in both dimensions
+      if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return
+      const area = rect.width * rect.height
+      if (area < bestArea) { bestArea = area; best = el }
+    })
+    return best // null = window/body scroll
+  }
+
+  // Main page scroll container (largest, covers ≥40% viewport) — used as fallback
+  function getPinContainer() {
+    if (_pinContainer) return _pinContainer
+    const vw = window.innerWidth, vh = window.innerHeight
+    let best = null, bestArea = 0
+    allScrollContainers().forEach(el => {
+      const rect = el.getBoundingClientRect()
       if (rect.width < vw * 0.4 || rect.height < vh * 0.4) return
       const area = rect.width * rect.height
       if (area > bestArea) { bestArea = area; best = el }
     })
-    _pinContainer = best || null // null = window scrolls
+    _pinContainer = best || null
     return _pinContainer
+  }
+
+  // For rendering: find the smallest container where the pin's computed viewport position falls within bounds
+  function findContainerForPin(pin) {
+    if (isPinFixed(pin)) return null
+    const candidates = allScrollContainers().sort((a, b) =>
+      (a.scrollWidth * a.scrollHeight) - (b.scrollWidth * b.scrollHeight) // smallest first
+    )
+    for (const c of candidates) {
+      const rect = c.getBoundingClientRect()
+      const vx = pin.x_percent / 100 * c.scrollWidth - c.scrollLeft + rect.left
+      const vy = pin.y_percent / 100 * c.scrollHeight - c.scrollTop + rect.top
+      if (vx >= rect.left && vx <= rect.right && vy >= rect.top && vy <= rect.bottom) return c
+    }
+    return getPinContainer() // fallback to main container
   }
 
   function currentH1Text() {
@@ -693,7 +737,7 @@
 
   function isPinFixed(pin) { return pin.x_percent >= 10000 }
 
-  function pinAbsolutePos(pin) {
+  function pinAbsolutePos(pin, container) {
     if (isPinFixed(pin)) {
       return {
         x: (pin.x_percent - 10000) / 100 * window.innerWidth - 16,
@@ -701,7 +745,6 @@
         fixed: true,
       }
     }
-    const container = getPinContainer()
     if (!container) {
       return {
         x: pin.x_percent / 100 * document.documentElement.scrollWidth - 16,
@@ -730,12 +773,6 @@
 
   function renderPins() {
     document.querySelectorAll('.rh-pin').forEach(el => el.remove())
-    const container = getPinContainer()
-    const scrollParent = container || document.body
-    // scroll-following pins need a positioned ancestor
-    if (window.getComputedStyle(scrollParent).position === 'static') {
-      scrollParent.style.position = 'relative'
-    }
     visiblePins().forEach((pin) => {
       const globalIndex = pins.indexOf(pin)
       const el = document.createElement('div')
@@ -743,11 +780,26 @@
       el.className = 'rh-pin' + (isResolved ? ' resolved' : '')
       el.dataset.pinId = pin.id
       if (pin.id === highlightedPinId) el.style.opacity = '0.45'
-      const pos = pinAbsolutePos(pin)
+
+      // Find the right container for this specific pin
+      const container = findContainerForPin(pin)
+      const pos = pinAbsolutePos(pin, container)
       el.style.left = `${pos.x}px`
       el.style.top = `${pos.y}px`
-      // Pins on fixed elements (header/navbar) stay fixed in viewport
-      if (pos.fixed) { el.style.position = 'fixed'; el.style.zIndex = '15' }
+
+      if (pos.fixed) {
+        // Pins on fixed headers — stay in viewport
+        el.style.position = 'fixed'
+        el.style.zIndex = '15'
+        document.body.appendChild(el)
+        return
+      }
+
+      // Append to the detected scroll container (or body as fallback)
+      const pinParent = container || document.body
+      if (window.getComputedStyle(pinParent).position === 'static') {
+        pinParent.style.position = 'relative'
+      }
       const initial = (pin.author_name || '?')[0].toUpperCase()
       const ago = timeAgo(pin.created_at)
       el.innerHTML = `<span>${initial}</span>`
@@ -804,7 +856,7 @@
         cancelComment()
         openPinPopover(pin, globalIndex, el)
       }
-      ;(pos.fixed ? document.body : scrollParent).appendChild(el)
+      pinParent.appendChild(el)
     })
   }
 
