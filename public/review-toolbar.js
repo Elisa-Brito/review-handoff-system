@@ -220,8 +220,15 @@
         y = (e.pageY / document.documentElement.scrollHeight) * 100
       } else {
         const rect = container.getBoundingClientRect()
-        x = ((e.clientX - rect.left + container.scrollLeft) / container.scrollWidth) * 100
-        y = (Math.max(0, e.clientY - rect.top) + container.scrollTop) / container.scrollHeight * 100
+        // Click is outside (above/left of) the scroll container = fixed header area
+        // Store as viewport percentage with 10000 offset so renderPins knows to use position:fixed
+        if (e.clientY < rect.top || e.clientX < rect.left) {
+          x = 10000 + (e.clientX / window.innerWidth) * 100
+          y = 10000 + (e.clientY / window.innerHeight) * 100
+        } else {
+          x = ((e.clientX - rect.left + container.scrollLeft) / container.scrollWidth) * 100
+          y = (e.clientY - rect.top + container.scrollTop) / container.scrollHeight * 100
+        }
       }
       pendingPos = { x, y }
       closePinPopover()
@@ -684,7 +691,16 @@
     })
   }
 
+  function isPinFixed(pin) { return pin.x_percent >= 10000 }
+
   function pinAbsolutePos(pin) {
+    if (isPinFixed(pin)) {
+      return {
+        x: (pin.x_percent - 10000) / 100 * window.innerWidth - 16,
+        y: (pin.y_percent - 10000) / 100 * window.innerHeight - 16,
+        fixed: true,
+      }
+    }
     const container = getPinContainer()
     if (!container) {
       return {
@@ -715,10 +731,10 @@
   function renderPins() {
     document.querySelectorAll('.rh-pin').forEach(el => el.remove())
     const container = getPinContainer()
-    const pinParent = container || document.body
-    // pins need a positioned ancestor to work with position:absolute
-    if (window.getComputedStyle(pinParent).position === 'static') {
-      pinParent.style.position = 'relative'
+    const scrollParent = container || document.body
+    // scroll-following pins need a positioned ancestor
+    if (window.getComputedStyle(scrollParent).position === 'static') {
+      scrollParent.style.position = 'relative'
     }
     visiblePins().forEach((pin) => {
       const globalIndex = pins.indexOf(pin)
@@ -730,6 +746,8 @@
       const pos = pinAbsolutePos(pin)
       el.style.left = `${pos.x}px`
       el.style.top = `${pos.y}px`
+      // Pins on fixed elements (header/navbar) stay fixed in viewport
+      if (pos.fixed) { el.style.position = 'fixed'; el.style.zIndex = '2147483648' }
       const initial = (pin.author_name || '?')[0].toUpperCase()
       const ago = timeAgo(pin.created_at)
       el.innerHTML = `<span>${initial}</span>`
@@ -786,7 +804,7 @@
         cancelComment()
         openPinPopover(pin, globalIndex, el)
       }
-      pinParent.appendChild(el)
+      ;(pos.fixed ? document.body : scrollParent).appendChild(el)
     })
   }
 
