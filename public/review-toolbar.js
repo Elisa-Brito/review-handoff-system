@@ -118,7 +118,7 @@
       #rh-pin-popover .rh-pp-send:disabled{opacity:.5;cursor:not-allowed}
 
       /* Pins */
-      .rh-pin{position:absolute;width:32px;height:32px;border-radius:50% 50% 50% 4px;background:#6366f1;border:2.5px solid #fff;cursor:pointer;pointer-events:all;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:2147483641;display:flex;align-items:center;justify-content:center;transition:transform .15s ease,box-shadow .15s ease}
+      .rh-pin{position:fixed;width:32px;height:32px;border-radius:50% 50% 50% 4px;background:#6366f1;border:2.5px solid #fff;cursor:pointer;pointer-events:all;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:2147483641;display:flex;align-items:center;justify-content:center;transition:transform .15s ease,box-shadow .15s ease}
       .rh-pin:hover{transform:scale(1.12);box-shadow:0 4px 14px rgba(0,0,0,.4)}
       .rh-pin.resolved{background:#22c55e}
       .rh-pin span{color:#fff;font-size:12px;font-weight:700;font-family:-apple-system,sans-serif;line-height:1;user-select:none}
@@ -213,9 +213,16 @@
     overlay.id = 'rh-overlay'
     overlay.addEventListener('click', (e) => {
       if (mode !== 'comment') return
-      // Always use document-relative coordinates to avoid container detection issues
-      const x = (e.pageX / document.documentElement.scrollWidth) * 100
-      const y = (e.pageY / document.documentElement.scrollHeight) * 100
+      const container = getPinContainer()
+      let x, y
+      if (!container) {
+        x = (e.pageX / document.documentElement.scrollWidth) * 100
+        y = (e.pageY / document.documentElement.scrollHeight) * 100
+      } else {
+        const rect = container.getBoundingClientRect()
+        x = ((e.clientX - rect.left + container.scrollLeft) / container.scrollWidth) * 100
+        y = (Math.max(0, e.clientY - rect.top) + container.scrollTop) / container.scrollHeight * 100
+      }
       pendingPos = { x, y }
       closePinPopover()
       showPopover(e.clientX, e.clientY)
@@ -639,19 +646,14 @@
     if (_pinContainer) return _pinContainer
     let best = null, bestArea = 0
     document.querySelectorAll('*').forEach(el => {
-      if (el === document.body || el === document.documentElement) return
+      if (isToolbarEl(el) || el === document.body || el === document.documentElement) return
       const s = window.getComputedStyle(el)
       if (/(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 10) {
         const area = el.clientWidth * el.clientHeight
         if (area > bestArea) { bestArea = area; best = el }
       }
     })
-    _pinContainer = best || document.body
-    if (_pinContainer !== document.body) {
-      if (window.getComputedStyle(_pinContainer).position === 'static') {
-        _pinContainer.style.position = 'relative'
-      }
-    }
+    _pinContainer = best || null // null = use window scroll
     return _pinContainer
   }
 
@@ -679,9 +681,17 @@
   }
 
   function pinViewportPos(pin) {
+    const container = getPinContainer()
+    if (!container) {
+      return {
+        x: pin.x_percent / 100 * document.documentElement.scrollWidth,
+        y: pin.y_percent / 100 * document.documentElement.scrollHeight - window.scrollY,
+      }
+    }
+    const rect = container.getBoundingClientRect()
     return {
-      x: pin.x_percent / 100 * document.documentElement.scrollWidth,
-      y: pin.y_percent / 100 * document.documentElement.scrollHeight,
+      x: pin.x_percent / 100 * container.scrollWidth - container.scrollLeft + rect.left,
+      y: pin.y_percent / 100 * container.scrollHeight - container.scrollTop + rect.top,
     }
   }
 
@@ -833,6 +843,15 @@
       _observerDebounce = setTimeout(onPageChange, 300)
     })
     observer.observe(document.body, { childList: true, subtree: true })
+
+    // Attach scroll listener to the correct container (inner div or window)
+    const attachScrollListener = () => {
+      const c = getPinContainer()
+      const target = c || window
+      target.addEventListener('scroll', () => renderPins(), { passive: true })
+    }
+    // Wait for container to be rendered before attaching
+    setTimeout(attachScrollListener, 800)
   }
 
   function flashPin(pinId) {
@@ -845,8 +864,15 @@
   }
 
   function doScroll(pin) {
-    const targetTop = pin.y_percent / 100 * document.documentElement.scrollHeight - 120
-    window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' })
+    const container = getPinContainer()
+    const margin = 120
+    if (container) {
+      const targetTop = pin.y_percent / 100 * container.scrollHeight - margin
+      container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' })
+    } else {
+      const targetTop = pin.y_percent / 100 * document.documentElement.scrollHeight - margin
+      window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' })
+    }
     setTimeout(() => flashPin(pin.id), 500)
   }
 
