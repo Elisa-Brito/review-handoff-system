@@ -118,7 +118,7 @@
       #rh-pin-popover .rh-pp-send:disabled{opacity:.5;cursor:not-allowed}
 
       /* Pins */
-      .rh-pin{position:absolute;width:32px;height:32px;border-radius:50% 50% 50% 4px;background:#6366f1;border:2.5px solid #fff;cursor:pointer;pointer-events:all;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:1000;display:flex;align-items:center;justify-content:center;transition:transform .15s ease,box-shadow .15s ease}
+      .rh-pin{position:absolute;width:32px;height:32px;border-radius:50% 50% 50% 4px;background:#6366f1;border:2.5px solid #fff;cursor:pointer;pointer-events:all;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:15;display:flex;align-items:center;justify-content:center;transition:transform .15s ease,box-shadow .15s ease}
       .rh-pin:hover{transform:scale(1.12);box-shadow:0 4px 14px rgba(0,0,0,.4)}
       .rh-pin.resolved{background:#22c55e}
       .rh-pin span{color:#fff;font-size:12px;font-weight:700;font-family:-apple-system,sans-serif;line-height:1;user-select:none}
@@ -747,7 +747,7 @@
       el.style.left = `${pos.x}px`
       el.style.top = `${pos.y}px`
       // Pins on fixed elements (header/navbar) stay fixed in viewport
-      if (pos.fixed) { el.style.position = 'fixed'; el.style.zIndex = '1000' }
+      if (pos.fixed) { el.style.position = 'fixed'; el.style.zIndex = '15' }
       const initial = (pin.author_name || '?')[0].toUpperCase()
       const ago = timeAgo(pin.created_at)
       el.innerHTML = `<span>${initial}</span>`
