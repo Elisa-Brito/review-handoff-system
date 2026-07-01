@@ -1299,30 +1299,29 @@
   function renderPageSection(page) {
     const tokens = handoffData?.tokens
     return `
-      ${tokens ? renderTokensSection(tokens) : `
-        ${page.colors?.length ? `
-          <div class="rh-handoff-section">
-            <p class="rh-handoff-label">🎨 Colors</p>
-            ${page.colors.map(c => `
-              <div class="rh-color-chip" onclick="navigator.clipboard.writeText('${c.hex}')">
-                <div class="rh-color-dot" style="background:${c.hex}"></div>
-                <div><div class="rh-color-name">${c.name}</div><div class="rh-color-hex">${c.hex}</div></div>
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
-        ${page.typography?.length ? `
-          <div class="rh-handoff-section">
-            <p class="rh-handoff-label">✏️ Typography</p>
-            ${page.typography.map(t => `
-              <div class="rh-type-row">
-                <div class="rh-type-name">${t.name}</div>
-                <div class="rh-type-detail">${t.fontFamily} · ${t.fontSize}</div>
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
-      `}
+      ${page.colors?.length ? `
+        <div class="rh-handoff-section">
+          <p class="rh-handoff-label">🎨 Colors</p>
+          ${page.colors.map(c => `
+            <div class="rh-color-chip" onclick="navigator.clipboard.writeText('${c.hex}')">
+              <div class="rh-color-dot" style="background:${c.hex}"></div>
+              <div><div class="rh-color-name">${c.name}</div><div class="rh-color-hex">${c.hex}</div></div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+      ${page.typography?.length ? `
+        <div class="rh-handoff-section">
+          <p class="rh-handoff-label">✏️ Typography</p>
+          ${page.typography.map(t => `
+            <div class="rh-type-row">
+              <div class="rh-type-name">${t.name}</div>
+              <div class="rh-type-detail">${t.fontFamily} · ${t.fontSize}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+      ${tokens ? renderTokensSection(tokens) : ''}
       ${page.components?.length ? `
         <div class="rh-handoff-section">
           <p class="rh-handoff-label">🧩 Components</p>
