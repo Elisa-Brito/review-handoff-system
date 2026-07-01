@@ -118,7 +118,7 @@
       #rh-pin-popover .rh-pp-send:disabled{opacity:.5;cursor:not-allowed}
 
       /* Pins */
-      .rh-pin{position:fixed;width:32px;height:32px;border-radius:50% 50% 50% 4px;background:#6366f1;border:2.5px solid #fff;cursor:pointer;pointer-events:all;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:2147483641;display:flex;align-items:center;justify-content:center;transition:transform .15s ease,box-shadow .15s ease}
+      .rh-pin{position:absolute;width:32px;height:32px;border-radius:50% 50% 50% 4px;background:#6366f1;border:2.5px solid #fff;cursor:pointer;pointer-events:all;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:2147483641;display:flex;align-items:center;justify-content:center;transition:transform .15s ease,box-shadow .15s ease}
       .rh-pin:hover{transform:scale(1.12);box-shadow:0 4px 14px rgba(0,0,0,.4)}
       .rh-pin.resolved{background:#22c55e}
       .rh-pin span{color:#fff;font-size:12px;font-weight:700;font-family:-apple-system,sans-serif;line-height:1;user-select:none}
@@ -684,18 +684,17 @@
     })
   }
 
-  function pinViewportPos(pin) {
+  function pinAbsolutePos(pin) {
     const container = getPinContainer()
     if (!container) {
       return {
-        x: pin.x_percent / 100 * document.documentElement.scrollWidth,
-        y: pin.y_percent / 100 * document.documentElement.scrollHeight - window.scrollY,
+        x: pin.x_percent / 100 * document.documentElement.scrollWidth - 16,
+        y: pin.y_percent / 100 * document.documentElement.scrollHeight - 16,
       }
     }
-    const rect = container.getBoundingClientRect()
     return {
-      x: pin.x_percent / 100 * container.scrollWidth - container.scrollLeft + rect.left,
-      y: pin.y_percent / 100 * container.scrollHeight - container.scrollTop + rect.top,
+      x: pin.x_percent / 100 * container.scrollWidth - 16,
+      y: pin.y_percent / 100 * container.scrollHeight - 16,
     }
   }
 
@@ -715,6 +714,12 @@
 
   function renderPins() {
     document.querySelectorAll('.rh-pin').forEach(el => el.remove())
+    const container = getPinContainer()
+    const pinParent = container || document.body
+    // pins need a positioned ancestor to work with position:absolute
+    if (window.getComputedStyle(pinParent).position === 'static') {
+      pinParent.style.position = 'relative'
+    }
     visiblePins().forEach((pin) => {
       const globalIndex = pins.indexOf(pin)
       const el = document.createElement('div')
@@ -722,9 +727,9 @@
       el.className = 'rh-pin' + (isResolved ? ' resolved' : '')
       el.dataset.pinId = pin.id
       if (pin.id === highlightedPinId) el.style.opacity = '0.45'
-      const pos = pinViewportPos(pin)
-      el.style.left = `${pos.x - 16}px`
-      el.style.top = `${pos.y - 16}px`
+      const pos = pinAbsolutePos(pin)
+      el.style.left = `${pos.x}px`
+      el.style.top = `${pos.y}px`
       const initial = (pin.author_name || '?')[0].toUpperCase()
       const ago = timeAgo(pin.created_at)
       el.innerHTML = `<span>${initial}</span>`
@@ -781,7 +786,7 @@
         cancelComment()
         openPinPopover(pin, globalIndex, el)
       }
-      document.body.appendChild(el)
+      pinParent.appendChild(el)
     })
   }
 
@@ -850,18 +855,8 @@
     })
     observer.observe(document.body, { childList: true, subtree: true })
 
-    // Attach scroll listener — re-detects container after React renders
-    let _scrollTarget = null
-    const attachScrollListener = () => {
-      if (_scrollTarget) _scrollTarget.removeEventListener('scroll', renderPins)
-      _pinContainer = null
-      const c = getPinContainer()
-      _scrollTarget = c || window
-      _scrollTarget.addEventListener('scroll', renderPins, { passive: true })
-    }
-    setTimeout(attachScrollListener, 800)
-    // Re-attach when page changes (container may differ per page)
-    document.addEventListener('rh-page-changed', attachScrollListener)
+    // Re-detect scroll container when page changes (layout may differ per page)
+    document.addEventListener('rh-page-changed', () => { _pinContainer = null; renderPins() })
   }
 
   function flashPin(pinId) {
