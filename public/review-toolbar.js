@@ -875,6 +875,20 @@
 
     // Re-detect scroll container when page changes (layout may differ per page)
     document.addEventListener('rh-page-changed', () => { _pinContainer = null; renderPins() })
+
+    // Hide pins that scroll into the fixed header zone (above the scroll container)
+    const clipPinsToContainer = () => {
+      const c = getPinContainer()
+      if (!c) return
+      const containerTop = c.getBoundingClientRect().top
+      document.querySelectorAll('.rh-pin:not([style*="position: fixed"])').forEach(el => {
+        const pinTop = el.getBoundingClientRect().top
+        el.style.visibility = pinTop < containerTop ? 'hidden' : 'visible'
+      })
+    }
+    const scrollTarget = getPinContainer() || window
+    scrollTarget.addEventListener('scroll', clipPinsToContainer, { passive: true })
+    document.addEventListener('rh-page-changed', clipPinsToContainer)
   }
 
   function flashPin(pinId) {
