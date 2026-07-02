@@ -214,17 +214,21 @@
     overlay.id = 'rh-overlay'
     overlay.addEventListener('click', (e) => {
       if (mode !== 'comment') return
-      const container = getPinContainer()
+      // Use the smallest scroll container at the click point; fall back to main page container
+      const mainC = getPinContainer()
+      const container = getContainerAtPoint(e.clientX, e.clientY) || mainC
+      pendingContainer = container
       let x, y
       if (!container) {
         x = (e.pageX / document.documentElement.scrollWidth) * 100
         y = (e.pageY / document.documentElement.scrollHeight) * 100
       } else {
         const rect = container.getBoundingClientRect()
-        if (e.clientY < rect.top || e.clientX < rect.left) {
+        if (mainC && (e.clientY < mainC.getBoundingClientRect().top)) {
           // Click is in fixed header zone — store as viewport % with 10000 offset
           x = 10000 + (e.clientX / window.innerWidth) * 100
           y = 10000 + (e.clientY / window.innerHeight) * 100
+          pendingContainer = null
         } else {
           x = ((e.clientX - rect.left + container.scrollLeft) / container.scrollWidth) * 100
           y = (e.clientY - rect.top + container.scrollTop) / container.scrollHeight * 100
@@ -690,26 +694,11 @@
     return _pinContainer
   }
 
-  // For rendering: return cached container (set at click time), or detect via heuristic on first render
+  // For rendering: use cached container (set at click time) or fall back to main page container
   function findContainerForPin(pin) {
     if (isPinFixed(pin)) return null
     if (pin.id in _pinContainerMap) return _pinContainerMap[pin.id]
-    // Heuristic for pins loaded from DB (sections likely at scrollTop=0 on fresh load)
-    const candidates = allScrollContainers().sort((a, b) =>
-      (a.scrollWidth * a.scrollHeight) - (b.scrollWidth * b.scrollHeight)
-    )
-    for (const c of candidates) {
-      const rect = c.getBoundingClientRect()
-      const vx = pin.x_percent / 100 * c.scrollWidth - c.scrollLeft + rect.left
-      const vy = pin.y_percent / 100 * c.scrollHeight - c.scrollTop + rect.top
-      if (vx >= rect.left && vx <= rect.right && vy >= rect.top && vy <= rect.bottom) {
-        _pinContainerMap[pin.id] = c
-        return c
-      }
-    }
-    const fallback = getPinContainer()
-    _pinContainerMap[pin.id] = fallback
-    return fallback
+    return getPinContainer() // DB-loaded pins default to main container
   }
 
   function currentH1Text() {
@@ -773,12 +762,6 @@
 
   function renderPins() {
     document.querySelectorAll('.rh-pin').forEach(el => el.remove())
-    // Use the main page scroll container for all pins
-    const pageContainer = getPinContainer()
-    const pinParent = pageContainer || document.body
-    if (window.getComputedStyle(pinParent).position === 'static') {
-      pinParent.style.position = 'relative'
-    }
     visiblePins().forEach((pin) => {
       const globalIndex = pins.indexOf(pin)
       const el = document.createElement('div')
@@ -787,7 +770,8 @@
       el.dataset.pinId = pin.id
       if (pin.id === highlightedPinId) el.style.opacity = '0.45'
 
-      const pos = pinAbsolutePos(pin, pageContainer)
+      const container = findContainerForPin(pin)
+      const pos = pinAbsolutePos(pin, container)
       el.style.left = `${pos.x}px`
       el.style.top = `${pos.y}px`
 
@@ -796,6 +780,12 @@
         el.style.zIndex = '15'
         document.body.appendChild(el)
         return
+      }
+
+      // Always use a real scroll container — never fall back to body (body doesn't scroll in SPAs)
+      const pinParent = container || getPinContainer()
+      if (pinParent && window.getComputedStyle(pinParent).position === 'static') {
+        pinParent.style.position = 'relative'
       }
       const initial = (pin.author_name || '?')[0].toUpperCase()
       const ago = timeAgo(pin.created_at)
@@ -853,7 +843,7 @@
         cancelComment()
         openPinPopover(pin, globalIndex, el)
       }
-      pinParent.appendChild(el)
+      ;(pinParent || document.body).appendChild(el)
     })
   }
 
