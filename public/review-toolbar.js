@@ -214,31 +214,21 @@
     overlay.id = 'rh-overlay'
     overlay.addEventListener('click', (e) => {
       if (mode !== 'comment') return
-      // Find the most specific (smallest) scroll container at the click point
-      const container = getContainerAtPoint(e.clientX, e.clientY)
-      pendingContainer = container
+      const container = getPinContainer()
       let x, y
       if (!container) {
-        // No scroll container — check if click is in a fixed header zone
-        const mainC = getPinContainer()
-        if (mainC) {
-          const rect = mainC.getBoundingClientRect()
-          if (e.clientY < rect.top || e.clientX < rect.left) {
-            // Fixed header area — store as viewport % with 10000 offset
-            x = 10000 + (e.clientX / window.innerWidth) * 100
-            y = 10000 + (e.clientY / window.innerHeight) * 100
-          } else {
-            x = ((e.clientX - rect.left + mainC.scrollLeft) / mainC.scrollWidth) * 100
-            y = (e.clientY - rect.top + mainC.scrollTop) / mainC.scrollHeight * 100
-          }
-        } else {
-          x = (e.pageX / document.documentElement.scrollWidth) * 100
-          y = (e.pageY / document.documentElement.scrollHeight) * 100
-        }
+        x = (e.pageX / document.documentElement.scrollWidth) * 100
+        y = (e.pageY / document.documentElement.scrollHeight) * 100
       } else {
         const rect = container.getBoundingClientRect()
-        x = ((e.clientX - rect.left + container.scrollLeft) / container.scrollWidth) * 100
-        y = (e.clientY - rect.top + container.scrollTop) / container.scrollHeight * 100
+        if (e.clientY < rect.top || e.clientX < rect.left) {
+          // Click is in fixed header zone — store as viewport % with 10000 offset
+          x = 10000 + (e.clientX / window.innerWidth) * 100
+          y = 10000 + (e.clientY / window.innerHeight) * 100
+        } else {
+          x = ((e.clientX - rect.left + container.scrollLeft) / container.scrollWidth) * 100
+          y = (e.clientY - rect.top + container.scrollTop) / container.scrollHeight * 100
+        }
       }
       pendingPos = { x, y }
       closePinPopover()
@@ -783,6 +773,12 @@
 
   function renderPins() {
     document.querySelectorAll('.rh-pin').forEach(el => el.remove())
+    // Use the main page scroll container for all pins
+    const pageContainer = getPinContainer()
+    const pinParent = pageContainer || document.body
+    if (window.getComputedStyle(pinParent).position === 'static') {
+      pinParent.style.position = 'relative'
+    }
     visiblePins().forEach((pin) => {
       const globalIndex = pins.indexOf(pin)
       const el = document.createElement('div')
@@ -791,24 +787,15 @@
       el.dataset.pinId = pin.id
       if (pin.id === highlightedPinId) el.style.opacity = '0.45'
 
-      // Find the right container for this specific pin
-      const container = findContainerForPin(pin)
-      const pos = pinAbsolutePos(pin, container)
+      const pos = pinAbsolutePos(pin, pageContainer)
       el.style.left = `${pos.x}px`
       el.style.top = `${pos.y}px`
 
       if (pos.fixed) {
-        // Pins on fixed headers — stay in viewport
         el.style.position = 'fixed'
         el.style.zIndex = '15'
         document.body.appendChild(el)
         return
-      }
-
-      // Append to the detected scroll container (or body as fallback)
-      const pinParent = container || document.body
-      if (window.getComputedStyle(pinParent).position === 'static') {
-        pinParent.style.position = 'relative'
       }
       const initial = (pin.author_name || '?')[0].toUpperCase()
       const ago = timeAgo(pin.created_at)
