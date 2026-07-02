@@ -40,6 +40,7 @@
   let panelOpen = false
   let activePanel = null
   let pendingPos = null
+  let pendingContainer = null // scroll container at the time of the click
   let handoffData = null
   let handoffHistory = []
   let handoffLoading = false
@@ -215,6 +216,7 @@
       if (mode !== 'comment') return
       // Find the most specific (smallest) scroll container at the click point
       const container = getContainerAtPoint(e.clientX, e.clientY)
+      pendingContainer = container
       let x, y
       if (!container) {
         // No scroll container — check if click is in a fixed header zone
@@ -656,6 +658,7 @@
   let _pinContainer = null
   let _capturedPages = {} // { pageKey: html }
   let _pageNavMap = {} // { routePath: navButtonText } — built lazily as user navigates
+  const _pinContainerMap = {} // pinId → containerElement | null (cached per pin)
 
   // Returns all scrollable containers in the page (not toolbar, not body/html)
   function allScrollContainers() {
@@ -697,19 +700,26 @@
     return _pinContainer
   }
 
-  // For rendering: find the smallest container where the pin's computed viewport position falls within bounds
+  // For rendering: return cached container (set at click time), or detect via heuristic on first render
   function findContainerForPin(pin) {
     if (isPinFixed(pin)) return null
+    if (pin.id in _pinContainerMap) return _pinContainerMap[pin.id]
+    // Heuristic for pins loaded from DB (sections likely at scrollTop=0 on fresh load)
     const candidates = allScrollContainers().sort((a, b) =>
-      (a.scrollWidth * a.scrollHeight) - (b.scrollWidth * b.scrollHeight) // smallest first
+      (a.scrollWidth * a.scrollHeight) - (b.scrollWidth * b.scrollHeight)
     )
     for (const c of candidates) {
       const rect = c.getBoundingClientRect()
       const vx = pin.x_percent / 100 * c.scrollWidth - c.scrollLeft + rect.left
       const vy = pin.y_percent / 100 * c.scrollHeight - c.scrollTop + rect.top
-      if (vx >= rect.left && vx <= rect.right && vy >= rect.top && vy <= rect.bottom) return c
+      if (vx >= rect.left && vx <= rect.right && vy >= rect.top && vy <= rect.bottom) {
+        _pinContainerMap[pin.id] = c
+        return c
+      }
     }
-    return getPinContainer() // fallback to main container
+    const fallback = getPinContainer()
+    _pinContainerMap[pin.id] = fallback
+    return fallback
   }
 
   function currentH1Text() {
@@ -926,7 +936,12 @@
     observer.observe(document.body, { childList: true, subtree: true })
 
     // Re-detect scroll container when page changes (layout may differ per page)
-    document.addEventListener('rh-page-changed', () => { _pinContainer = null; renderPins() })
+    document.addEventListener('rh-page-changed', () => {
+      _pinContainer = null
+      // Clear container cache — new page may have different section containers
+      Object.keys(_pinContainerMap).forEach(k => delete _pinContainerMap[k])
+      renderPins()
+    })
   }
 
   function flashPin(pinId) {
@@ -1277,10 +1292,13 @@
     })
     pins.push(data[0])
     replies[data[0].id] = []
+    // Cache the container used at click time so renderPins always uses the right one
+    if (pendingContainer) _pinContainerMap[data[0].id] = pendingContainer
     renderPins()
     renderPinsList()
     document.getElementById('rh-popover').style.display = 'none'
     pendingPos = null
+    pendingContainer = null
     mode = 'pointer'
     document.getElementById('rh-overlay').classList.remove('active')
     updateToolbar()
